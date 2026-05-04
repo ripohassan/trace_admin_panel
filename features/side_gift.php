@@ -148,7 +148,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_gift') {
 
                                             $credits = (int)($cObj->get('coins') ?? 0);
                                             $giftName = $cObj->get('name') ?? '';
-                                            $is_frame = $cObj->get('is_frame') ? ' (Frame)' : '';
+                                            $is_frame = $cObj->get('is_fream') ? ' (Frame)' : '';
                                             $giftCategory = $cObj->get('categories') ?? '';
 
                                             $profilePhotoUrl = '';
