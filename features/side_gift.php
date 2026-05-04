@@ -148,6 +148,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_gift') {
 
                                             $credits = (int)($cObj->get('coins') ?? 0);
                                             $giftName = $cObj->get('name') ?? '';
+                                            $is_frame = $cObj->get('is_frame') ? ' (Frame)' : '';
                                             $giftCategory = $cObj->get('categories') ?? '';
 
                                             $profilePhotoUrl = '';
@@ -165,7 +166,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_gift') {
                                             <tr>
                                                 <td>' . htmlspecialchars($objectId) . '</td>
                                                 <td>' . htmlspecialchars($created) . '</td>
-                                                <td><span>' . htmlspecialchars($giftName) . '</span></td>
+                                                <td><span>' . htmlspecialchars($giftName). ' '. htmlspecialchars($is_frame) . '</span></td>
                                                 <td><span>' . htmlspecialchars($giftCategory) . '</span></td>
                                                 <td>' . htmlspecialchars((string)$credits) . '</td>
                                                 <td><span>' . $file . '</span></td>
