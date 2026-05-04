@@ -62,6 +62,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_gift' && $gift) {
     $name = trim($_POST['gift_name'] ?? '');
     $category = trim($_POST['gift_category'] ?? '');
     $coins = (int)($_POST['gift_credits'] ?? 0);
+    $isFream = isset($_POST['gift_is_fream']) ? (int)$_POST['gift_is_fream'] : 0;
     $removeFile = isset($_POST['remove_file']);
 
     if ($name === '' || $category === '' || $coins <= 0) {
@@ -71,6 +72,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_gift' && $gift) {
             $gift->set('name', $name);
             $gift->set('categories', $category);
             $gift->set('coins', $coins);
+            $gift->set('is_fream', $isFream === 1 ? 1 : 0);
 
             if ($removeFile) {
                 $gift->set('file', null);
@@ -147,6 +149,14 @@ if ($typeFile !== null && is_object($typeFile) && method_exists($typeFile, 'getU
                                     <div class="form-group">
                                         <label for="gift_credits">Credits</label>
                                         <input type="number" min="1" id="gift_credits" name="gift_credits" class="form-control" value="<?php echo htmlspecialchars((string)($gift->get('coins') ?? 0)); ?>" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="gift_is_fream">Type</label>
+                                        <select id="gift_is_fream" name="gift_is_fream" class="form-control" required>
+                                            <option value="0" <?php echo ((int)($gift->get('is_fream') ?? 0) === 0) ? 'selected' : ''; ?>>Gift</option>
+                                            <option value="1" <?php echo ((int)($gift->get('is_fream') ?? 0) === 1) ? 'selected' : ''; ?>>Frame</option>
+                                        </select>
                                     </div>
 
                                     <div class="form-group">

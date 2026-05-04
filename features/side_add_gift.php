@@ -69,6 +69,7 @@ if(isset($_POST['val-name']) && isset($_POST['val-credits']) && isset($_FILES['v
         $name = $_POST['val-name'];
         $category = $_POST['val-category'];
         $credits = $_POST['val-credits'];
+        $isFream = isset($_POST['val-is-fream']) ? (int)$_POST['val-is-fream'] : 0;
         $filePath = $_FILES["val-file"]["tmp_name"] ?? '';
         $fileName = $_FILES['val-file']['name'];
         $safeBaseName = preg_replace('/[^A-Za-z0-9._-]/', '_', pathinfo($fileName, PATHINFO_FILENAME));
@@ -83,6 +84,7 @@ if(isset($_POST['val-name']) && isset($_POST['val-credits']) && isset($_FILES['v
         $newGift->set("name", $name);
         $newGift->set("categories",$category);
         $newGift->set("coins", (int)$credits);
+        $newGift->set("is_fream", $isFream === 1 ? 1 : 0);
         if ($filePath && $fileName && is_uploaded_file($filePath)) {
             $newGift->set("file", ParseFile::createFromFile($filePath, $safeFileName));
         }
@@ -144,6 +146,17 @@ if(isset($_POST['val-name']) && isset($_POST['val-credits']) && isset($_FILES['v
                             <label for="val-credits" class="col-sm-4 col-form-label">Credits<span class="text-danger">*</span></label>
                             <div class="col-sm-8">
                                 <input type="number" class="form-control" id="val-credits" name="val-credits" placeholder="Credits needed to send the gift" required>
+                                <div class="valid-feedback">Looks good!</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label for="val-is-fream" class="col-sm-4 col-form-label">Type<span class="text-danger">*</span></label>
+                            <div class="col-sm-8">
+                                <select class="form-control" id="val-is-fream" name="val-is-fream" required>
+                                    <option value="0">Gift</option>
+                                    <option value="1">Frame</option>
+                                </select>
                                 <div class="valid-feedback">Looks good!</div>
                             </div>
                         </div>
