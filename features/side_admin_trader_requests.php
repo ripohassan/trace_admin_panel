@@ -23,7 +23,38 @@ if ($currUser->get("role") !== "admin") {
 
 $_SESSION['token'] = $currUser->getSessionToken();
 
-if (isset($_POST['action']) && $_POST['action'] === 'approve_trader_request') {
+function ensureTraderRequestsClassExists($seedUser, &$schemaErrorMsg = '')
+{
+    try {
+        $checkQuery = new ParseQuery("TraderRequests");
+        $checkQuery->limit(1);
+        $checkQuery->find(true);
+        return true;
+    } catch (ParseException $e) {
+        try {
+            $bootstrap = ParseObject::create("TraderRequests");
+            $bootstrap->set("user", $seedUser);
+            $bootstrap->set("countryCode", "");
+            $bootstrap->set("mobileNumber", "");
+            $bootstrap->set("note", "bootstrap");
+            $bootstrap->set("status", "bootstrap");
+            $bootstrap->set("is_approve", false);
+            $bootstrap->save(true);
+            $bootstrap->destroy(true);
+            return true;
+        } catch (ParseException $createEx) {
+            $schemaErrorMsg = "TraderRequests table create hocche na. Back4App app settings/class permissions check korun. Details: " . $createEx->getMessage();
+            return false;
+        }
+    }
+}
+
+$traderRequestsReady = ensureTraderRequestsClassExists($currUser, $schemaErrorMsg);
+if (!$traderRequestsReady) {
+    $errorMsg = $schemaErrorMsg;
+}
+
+if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'approve_trader_request') {
     $requestId = $_POST['request_id'] ?? '';
 
     if ($requestId !== '') {
@@ -74,7 +105,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'approve_trader_request') {
     }
 }
 
-if (isset($_POST['action']) && $_POST['action'] === 'reject_trader_request') {
+if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'reject_trader_request') {
     $requestId = $_POST['request_id'] ?? '';
 
     if ($requestId !== '') {
@@ -100,15 +131,17 @@ if (isset($_POST['action']) && $_POST['action'] === 'reject_trader_request') {
 }
 
 $allRequests = [];
-try {
-    $allRequestsQuery = new ParseQuery("TraderRequests");
-    $allRequestsQuery->includeKey("user");
-    $allRequestsQuery->includeKey("approvedBy");
-    $allRequestsQuery->descending("createdAt");
-    $allRequestsQuery->limit(1000);
-    $allRequests = $allRequestsQuery->find(true);
-} catch (ParseException $e) {
-    $errorMsg = $e->getMessage();
+if ($traderRequestsReady) {
+    try {
+        $allRequestsQuery = new ParseQuery("TraderRequests");
+        $allRequestsQuery->includeKey("user");
+        $allRequestsQuery->includeKey("approvedBy");
+        $allRequestsQuery->descending("createdAt");
+        $allRequestsQuery->limit(1000);
+        $allRequests = $allRequestsQuery->find(true);
+    } catch (ParseException $e) {
+        $errorMsg = $e->getMessage();
+    }
 }
 
 ?>

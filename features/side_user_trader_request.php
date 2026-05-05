@@ -18,6 +18,37 @@ if (!$currUser) {
 
 $_SESSION['token'] = $currUser->getSessionToken();
 
+function ensureTraderRequestsClassExists($seedUser, &$schemaErrorMsg = '')
+{
+    try {
+        $checkQuery = new ParseQuery("TraderRequests");
+        $checkQuery->limit(1);
+        $checkQuery->find(true);
+        return true;
+    } catch (ParseException $e) {
+        try {
+            $bootstrap = ParseObject::create("TraderRequests");
+            $bootstrap->set("user", $seedUser);
+            $bootstrap->set("countryCode", "");
+            $bootstrap->set("mobileNumber", "");
+            $bootstrap->set("note", "bootstrap");
+            $bootstrap->set("status", "bootstrap");
+            $bootstrap->set("is_approve", false);
+            $bootstrap->save(true);
+            $bootstrap->destroy(true);
+            return true;
+        } catch (ParseException $createEx) {
+            $schemaErrorMsg = "TraderRequests table create hocche na. Back4App app settings/class permissions check korun. Details: " . $createEx->getMessage();
+            return false;
+        }
+    }
+}
+
+$traderRequestsReady = ensureTraderRequestsClassExists($currUser, $schemaErrorMsg);
+if (!$traderRequestsReady) {
+    $errorMsg = $schemaErrorMsg;
+}
+
 $isAlreadyTrader = false;
 try {
     $traderCheckQuery = new ParseQuery("CoinTraders");
@@ -28,7 +59,7 @@ try {
     $isAlreadyTrader = false;
 }
 
-if (isset($_POST['action']) && $_POST['action'] === 'request_trader') {
+if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'request_trader') {
     $countryCode = trim($_POST['country_code'] ?? '');
     $mobileNumber = trim($_POST['mobile_number'] ?? '');
     $note = trim($_POST['note'] ?? '');
@@ -48,7 +79,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'request_trader') {
                 $errorMsg = "You already have a pending trader request.";
             }
         } catch (ParseException $e) {
-            // No pending request found.
+            if (stripos($e->getMessage(), 'Object not found') === false) {
+                $errorMsg = $e->getMessage();
+            }
         }
 
         if (!isset($errorMsg)) {
@@ -71,15 +104,17 @@ if (isset($_POST['action']) && $_POST['action'] === 'request_trader') {
 }
 
 $myRequests = [];
-try {
-    $myRequestsQuery = new ParseQuery("TraderRequests");
-    $myRequestsQuery->equalTo("user", $currUser);
-    $myRequestsQuery->includeKey("approvedBy");
-    $myRequestsQuery->descending("createdAt");
-    $myRequestsQuery->limit(200);
-    $myRequests = $myRequestsQuery->find(true);
-} catch (ParseException $e) {
-    $errorMsg = $e->getMessage();
+if ($traderRequestsReady) {
+    try {
+        $myRequestsQuery = new ParseQuery("TraderRequests");
+        $myRequestsQuery->equalTo("user", $currUser);
+        $myRequestsQuery->includeKey("approvedBy");
+        $myRequestsQuery->descending("createdAt");
+        $myRequestsQuery->limit(200);
+        $myRequests = $myRequestsQuery->find(true);
+    } catch (ParseException $e) {
+        $errorMsg = $e->getMessage();
+    }
 }
 
 ?>
