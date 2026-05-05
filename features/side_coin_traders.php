@@ -19,36 +19,7 @@ if ($currUser) {
 
 // Handle Create Coin Trader
 if (isset($_POST['action']) && $_POST['action'] === 'create_trader') {
-    $userId = $_POST['user_id'] ?? '';
-    $initialCoin = (int)($_POST['initial_coin'] ?? 0);
-    $countryCode = $_POST['country_code'] ?? '';
-    $mobileNumber = $_POST['mobile_number'] ?? '';
-
-    if ($userId && $initialCoin > 0) {
-        try {
-            // Get user first
-            $userQuery = new ParseQuery("_User");
-            $user = $userQuery->get($userId, true);
-
-            $trader = ParseObject::create("CoinTraders");
-            $trader->set("user", $user);
-            $trader->set("coinBalance", $initialCoin);
-            $trader->set("spentCoins", 0);
-            $trader->set("countryCode", $countryCode);
-            $trader->set("mobileNumber", $mobileNumber);
-            $trader->set("isActive", true);
-            $trader->save(true);
-
-            // Sync user's credit with initial coin balance
-            $user->set("credit", $initialCoin);
-            $user->save(true);
-
-            echo '<script>window.location.href = "../dashboard/coin_traders.php?success=1";</script>';
-            exit;
-        } catch (ParseException $e) {
-            $errorMsg = $e->getMessage();
-        }
-    }
+    $errorMsg = "Manual create disabled. Please approve trader requests from Trader Requests page.";
 }
 
 // Handle Toggle Status
@@ -81,39 +52,23 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_trader') {
     }
 }
 
-// Fetch all users for dropdown
-$allUsers = [];
-$existingTraderUserIds = [];
-try {
-    // Get all existing trader user IDs
-    $traderQuery = new ParseQuery("CoinTraders");
-    $traderQuery->includeKey("user");
-    $traderQuery->limit(1500);
-    $existingTraders = $traderQuery->find(true);
-    foreach ($existingTraders as $t) {
-        $u = $t->get("user");
-        if ($u) {
-            $existingTraderUserIds[] = $u->getObjectId();
-        }
-    }
-} catch (ParseException $e) {
-    // ignore
-}
+// Handle Trader Status Update
+if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
+    $traderId = $_POST['trader_id'] ?? '';
+    $status = $_POST['status'] ?? 'approved';
+    $allowed = ['approved', 'suspended'];
 
-try {
-    $userQuery = new ParseQuery("_User");
-    $userQuery->descending('createdAt');
-    $userQuery->limit(1500);
-    $allUsersTemp = $userQuery->find(true);
-    
-    // Filter out users who are already traders
-    foreach ($allUsersTemp as $user) {
-        if (!in_array($user->getObjectId(), $existingTraderUserIds)) {
-            $allUsers[] = $user;
+    if ($traderId && in_array($status, $allowed, true)) {
+        try {
+            $query = new ParseQuery("CoinTraders");
+            $trader = $query->get($traderId, true);
+            $trader->set("status", $status);
+            $trader->set("isActive", $status === 'approved');
+            $trader->save(true);
+        } catch (ParseException $e) {
+            $errorMsg = $e->getMessage();
         }
     }
-} catch (ParseException $e) {
-    // ignore
 }
 
 ?>
@@ -214,20 +169,12 @@ try {
                         <div class="page-header-custom">
                             <div>
                                 <h2>Coin Traders</h2>
-                                <p>Manage coin traders and their balances</p>
+                                <p>Traders are added by approving Trader Requests from mobile app users</p>
                             </div>
                             <div class="header-actions">
                                 <input type="text" class="search-box-custom" id="searchTraders" placeholder="Search Coin Traders">
-                                <button class="btn-add-trader" onclick="openCreateModal()">+ Add Coin Trader</button>
                             </div>
                         </div>
-
-                        <?php if (isset($_GET['success'])): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            Coin Trader created successfully!
-                            <button type="button" class="close" data-dismiss="alert">&times;</button>
-                        </div>
-                        <?php endif; ?>
 
                         <?php if (isset($errorMsg)): ?>
                         <div class="alert alert-danger"><?php echo htmlspecialchars($errorMsg); ?></div>
@@ -244,6 +191,7 @@ try {
                                     <th>Mobile</th>
                                     <th>Created Date</th>
                                     <th>Status</th>
+                                    <th>Active</th>
                                     <th>Actions</th>
                                 </tr>
                                 </thead>
@@ -289,9 +237,11 @@ try {
                                         $createdAt = $trader->getCreatedAt();
                                         $createdDate = $createdAt ? $createdAt->format("M d, Y, h:i A") : '';
 
+                                        $traderStatus = $trader->get("status") ?? 'approved';
+                                        if ($traderStatus !== 'approved' && $traderStatus !== 'suspended') {
+                                            $traderStatus = ($trader->get("isActive") ?? false) ? 'approved' : 'suspended';
+                                        }
                                         $isActive = $trader->get("isActive") ?? false;
-                                        $statusClass = $isActive ? 'badge-active' : 'badge-inactive';
-                                        $statusText = $isActive ? 'Active' : 'Inactive';
                                         $toggleValue = $isActive ? '0' : '1';
 
                                         echo '
@@ -310,6 +260,16 @@ try {
                                             <td><span class="coin-icon">🪙</span> '.$spentCoins.'</td>
                                             <td>'.$mobile.'</td>
                                             <td>'.$createdDate.'</td>
+                                            <td style="text-align: center;">
+                                                <form method="post" style="margin:0;">
+                                                    <input type="hidden" name="action" value="update_trader_status">
+                                                    <input type="hidden" name="trader_id" value="'.$traderId.'">
+                                                    <select name="status" onchange="this.form.submit()" style="padding:4px 8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+                                                        <option value="approved" '.($traderStatus === 'approved' ? 'selected' : '').'>Approved</option>
+                                                        <option value="suspended" '.($traderStatus === 'suspended' ? 'selected' : '').'>Suspended</option>
+                                                    </select>
+                                                </form>
+                                            </td>
                                             <td style="text-align: center;">
                                                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                                                     
@@ -333,7 +293,7 @@ try {
                                         </tr>';
                                     }
                                 } catch (ParseException $e) {
-                                    echo '<tr><td colspan="8" class="text-center text-danger">' . htmlspecialchars($e->getMessage()) . '</td></tr>';
+                                    echo '<tr><td colspan="9" class="text-center text-danger">' . htmlspecialchars($e->getMessage()) . '</td></tr>';
                                 }
                                 ?>
                                 </tbody>
@@ -343,50 +303,6 @@ try {
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Create Coin Trader Modal -->
-<div class="modal-overlay" id="createTraderModal">
-    <div class="modal-box">
-        <button class="close-btn" onclick="closeCreateModal()">&times;</button>
-        <h3>Create Coin Trader</h3>
-        <form method="post" action="">
-            <input type="hidden" name="action" value="create_trader">
-            <div class="form-group">
-                <label>Select User</label>
-                <select name="user_id" required>
-                    <option value="">Select User</option>
-                    <?php if (count($allUsers) === 0): ?>
-                        <option disabled>All users are already traders</option>
-                    <?php else: ?>
-                        <?php foreach ($allUsers as $u): ?>
-                            <option value="<?php echo $u->getObjectId(); ?>">
-                                <?php echo htmlspecialchars($u->get('name') ?? $u->get('username') ?? $u->getObjectId()); ?> (@<?php echo htmlspecialchars($u->get('username') ?? ''); ?>)
-                            </option>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Initial Coin</label>
-                <input type="number" name="initial_coin" placeholder="🪙" min="1" required>
-            </div>
-            <div class="row-half">
-                <div class="form-group">
-                    <label>Country Code</label>
-                    <input type="text" name="country_code" placeholder="Country Code">
-                </div>
-                <div class="form-group">
-                    <label>Mobile Number</label>
-                    <input type="text" name="mobile_number" placeholder="Mobile Number">
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" class="btn-cancel" onclick="closeCreateModal()">Cancel</button>
-                <button type="submit" class="btn-create">Create</button>
-            </div>
-        </form>
     </div>
 </div>
 
@@ -403,12 +319,6 @@ try {
 </style>
 
 <script>
-function openCreateModal() {
-    document.getElementById('createTraderModal').classList.add('active');
-}
-function closeCreateModal() {
-    document.getElementById('createTraderModal').classList.remove('active');
-}
 function copyText(text) {
     navigator.clipboard.writeText(text);
 }

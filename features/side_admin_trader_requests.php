@@ -87,7 +87,12 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
                         $newTrader->set("countryCode", $request->get("countryCode") ?? '');
                         $newTrader->set("mobileNumber", $request->get("mobileNumber") ?? '');
                         $newTrader->set("isActive", true);
+                        $newTrader->set("status", "approved");
                         $newTrader->save(true);
+                    } else {
+                        $existingTrader->set("isActive", true);
+                        $existingTrader->set("status", "approved");
+                        $existingTrader->save(true);
                     }
 
                     $request->set("status", "approved");
