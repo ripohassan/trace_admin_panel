@@ -527,18 +527,7 @@ try {
     </div>
 </div>
 
-<script src="../assets/dashboard/js/lib/datatables/datatables.min.js"></script>
-<script src="../assets/dashboard/js/lib/datatables/cdn.datatables.min.js"></script>
-<script src="../assets/dashboard/js/lib/datatables/buttons.flash.min.js"></script>
-<script src="../assets/dashboard/js/lib/datatables/buttons.html5.min.js"></script>
-<script src="../assets/dashboard/js/lib/datatables/buttons.print.min.js"></script>
-<script src="../assets/dashboard/js/lib/datatables/dataTables.buttons.min.js"></script>
 
-<script>
-$(document).ready(function() {
-    $('#requestsTable').DataTable({
-        "order": [[6, "desc"]],
-        "lengthMenu": [10, 25, 50, 100],
         "pageLength": 25,
         "responsive": true,
         "columnDefs": [

@@ -29,7 +29,6 @@ if ($currUser->get("role") !== "admin") {
     <link href="../assets/dashboard/css/lib/calendar2/pignose.calendar.min.css" rel="stylesheet">
     <link href="../assets/dashboard/css/lib/owl.carousel.min.css" rel="stylesheet" />
     <link href="../assets/dashboard/css/lib/owl.theme.default.min.css" rel="stylesheet" />
-    <link href="../assets/dashboard/css/lib/datatables/datatables.min.css" rel="stylesheet" />
     <link href="../assets/dashboard/css/helper.css" rel="stylesheet">
     <link href="../assets/dashboard/css/style.css" rel="stylesheet">
     <link href="../assets/dashboard/css/aliki.css" rel="stylesheet">
@@ -44,6 +43,5 @@ if ($currUser->get("role") !== "admin") {
 
     <?php include '../dashboard/footer.php'; ?>
     </div>
-    <script src="../assets/dashboard/js/lib/jquery/jquery.min.js"></script>
 </body>
 </html>
