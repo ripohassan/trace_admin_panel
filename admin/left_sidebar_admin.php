@@ -155,7 +155,7 @@ $sidebarIsSuperAdmin = $sidebarCurrUser ? (($sidebarCurrUser->get('isSuperAdmin'
                         <li><a href="../dashboard/coin_request.php">Coin Requests (Admin)</a></li>
                         <li><a href="../dashboard/coin_traders.php">Coin Traders</a></li>
                         <li><a href="../dashboard/coin_plans.php">Coin Plans</a></li>
-                        <li><a href="../dashboard/coin_requests.php">Manage Requests</a></li>
+                        <!-- <li><a href="../dashboard/coin_requests.php">Manage Requests</a></li> -->
                         <?php } ?>
                     </ul>
                 </li>
