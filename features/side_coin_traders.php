@@ -56,7 +56,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_trader') {
 if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
     $traderId = $_POST['trader_id'] ?? '';
     $status = $_POST['status'] ?? 'approved';
-    $allowed = ['approved', 'suspended'];
+    $allowed = ['pending', 'approved', 'suspended'];
 
     if ($traderId && in_array($status, $allowed, true)) {
         try {
@@ -237,8 +237,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
                                         $createdAt = $trader->getCreatedAt();
                                         $createdDate = $createdAt ? $createdAt->format("M d, Y, h:i A") : '';
 
-                                        $traderStatus = $trader->get("status") ?? 'approved';
-                                        if ($traderStatus !== 'approved' && $traderStatus !== 'suspended') {
+                                        $traderStatus = $trader->get("status") ?? 'pending';
+                                        if ($traderStatus !== 'pending' && $traderStatus !== 'approved' && $traderStatus !== 'suspended') {
                                             $traderStatus = ($trader->get("isActive") ?? false) ? 'approved' : 'suspended';
                                         }
                                         $isActive = $trader->get("isActive") ?? false;
@@ -265,6 +265,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
                                                     <input type="hidden" name="action" value="update_trader_status">
                                                     <input type="hidden" name="trader_id" value="'.$traderId.'">
                                                     <select name="status" onchange="this.form.submit()" style="padding:4px 8px; border:1px solid #ddd; border-radius:6px; font-size:12px; color: #333;">
+                                                        <option value="pending" '.($traderStatus === 'pending' ? 'selected' : '').'>Pending</option>
                                                         <option value="approved" '.($traderStatus === 'approved' ? 'selected' : '').'>Approved</option>
                                                         <option value="suspended" '.($traderStatus === 'suspended' ? 'selected' : '').'>Suspended</option>
                                                     </select>
