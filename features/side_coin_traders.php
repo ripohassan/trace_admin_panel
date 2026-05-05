@@ -264,7 +264,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
                                                 <form method="post" style="margin:0;">
                                                     <input type="hidden" name="action" value="update_trader_status">
                                                     <input type="hidden" name="trader_id" value="'.$traderId.'">
-                                                    <select name="status" onchange="this.form.submit()" style="padding:4px 8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+                                                    <select name="status" onchange="this.form.submit()" style="padding:4px 8px; border:1px solid #ddd; border-radius:6px; font-size:12px; color: #333;">
                                                         <option value="approved" '.($traderStatus === 'approved' ? 'selected' : '').'>Approved</option>
                                                         <option value="suspended" '.($traderStatus === 'suspended' ? 'selected' : '').'>Suspended</option>
                                                     </select>
