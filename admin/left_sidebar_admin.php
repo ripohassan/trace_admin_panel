@@ -151,7 +151,11 @@ $sidebarIsSuperAdmin = $sidebarCurrUser ? (($sidebarCurrUser->get('isSuperAdmin'
                 <li>
                     <a class="has-arrow  " href="javascript:void(0)" aria-expanded="false"><i class="fa fa-diamond"></i><span class="hide-menu">Coin System</span></a>
                     <ul aria-expanded="false" class="collapse">
+                        <?php if ($sidebarRole !== 'admin') { ?>
+                        <li><a href="../dashboard/trader_request.php">Become Trader</a></li>
+                        <?php } ?>
                         <?php if ($sidebarRole === 'admin') { ?>
+                        <li><a href="../dashboard/trader_requests.php">Trader Requests</a></li>
                         <li><a href="../dashboard/coin_request.php">Coin Requests (Admin)</a></li>
                         <li><a href="../dashboard/coin_traders.php">Coin Traders</a></li>
                         <li><a href="../dashboard/coin_plans.php">Coin Plans</a></li>
