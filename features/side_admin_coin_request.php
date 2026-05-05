@@ -390,7 +390,7 @@ try {
         <?php endif; ?>
         
         <!-- Request Form -->
-        <div class="form-container">
+        <!-- <div class="form-container">
             <div class="admin-requests-header">
                 <div>
                     <h2>Send Coin Request</h2>
@@ -432,7 +432,7 @@ try {
                     </button>
                 </div>
             </form>
-        </div>
+        </div> -->
         
         <!-- Requests Table -->
         <div class="table-container">
