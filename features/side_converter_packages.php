@@ -19,17 +19,15 @@ if ($currUser) {
 
 if (isset($_POST['action']) && $_POST['action'] === 'create_package') {
     $packageName = trim($_POST['package_name'] ?? '');
-    $coins = (int)($_POST['coins'] ?? 0);
-    $amount = (float)($_POST['amount'] ?? 0);
-    $productKey = trim($_POST['product_key'] ?? '');
+    $diamondAmount = (int)($_POST['diamond_amount'] ?? 0);
+    $coinAmount = (int)($_POST['coin_amount'] ?? 0);
 
-    if ($packageName !== '' && $coins > 0 && $amount > 0) {
+    if ($packageName !== '' && $diamondAmount > 0 && $coinAmount > 0) {
         try {
             $package = ParseObject::create('ConverterPackages');
             $package->set('packageName', $packageName);
-            $package->set('coins', $coins);
-            $package->set('amount', $amount);
-            $package->set('productKey', $productKey);
+            $package->set('diamondAmount', $diamondAmount);
+            $package->set('coinAmount', $coinAmount);
             $package->set('isActive', true);
             $package->save(true);
 
@@ -46,18 +44,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'create_package') {
 if (isset($_POST['action']) && $_POST['action'] === 'edit_package') {
     $packageId = $_POST['package_id'] ?? '';
     $packageName = trim($_POST['package_name'] ?? '');
-    $coins = (int)($_POST['coins'] ?? 0);
-    $amount = (float)($_POST['amount'] ?? 0);
-    $productKey = trim($_POST['product_key'] ?? '');
+    $diamondAmount = (int)($_POST['diamond_amount'] ?? 0);
+    $coinAmount = (int)($_POST['coin_amount'] ?? 0);
 
-    if ($packageId && $packageName !== '' && $coins > 0 && $amount > 0) {
+    if ($packageId && $packageName !== '' && $diamondAmount > 0 && $coinAmount > 0) {
         try {
             $query = new ParseQuery('ConverterPackages');
             $package = $query->get($packageId, true);
             $package->set('packageName', $packageName);
-            $package->set('coins', $coins);
-            $package->set('amount', $amount);
-            $package->set('productKey', $productKey);
+            $package->set('diamondAmount', $diamondAmount);
+            $package->set('coinAmount', $coinAmount);
             $package->save(true);
 
             echo '<script>window.location.href = "../dashboard/converter_packages.php?updated=1";</script>';
@@ -113,6 +109,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_package') {
     }
     .btn-create-package:hover { background: #5a4bd1; color: #fff; text-decoration: none; }
     .package-badge { color: #f5a623; font-weight: bold; }
+    .package-ratio { color: #636e72; font-size: 12px; }
     .packages-table th {
         background: #f8f9fa; text-transform: uppercase; font-size: 11px;
         letter-spacing: 1px; color: #636e72; border-bottom: 2px solid #eee;
@@ -188,7 +185,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_package') {
                         <div class="converter-packages-header">
                             <div>
                                 <h2>Converter Packages</h2>
-                                <p>Manage package presets for admin conversion workflows</p>
+                                <p>Fixed exchange presets. No custom price entry.</p>
                             </div>
                             <button class="btn-create-package" onclick="openCreatePackageModal()">+ Create Package</button>
                         </div>
@@ -215,9 +212,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_package') {
                                 <tr>
                                     <th>No</th>
                                     <th>Package Name</th>
+                                    <th>Diamonds</th>
                                     <th>Coins</th>
-                                    <th>Amount ($)</th>
-                                    <th>Product Key</th>
+                                    <th>Rate</th>
                                     <th>Active</th>
                                     <th>Actions</th>
                                 </tr>
@@ -235,22 +232,20 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_package') {
                                         $packageId = $package->getObjectId();
                                         $packageNameRaw = $package->get('packageName') ?? '';
                                         $packageName = htmlspecialchars($packageNameRaw);
-                                        $coins = $package->get('coins') ?? 0;
-                                        $amount = $package->get('amount') ?? 0;
-                                        $productKeyRaw = $package->get('productKey') ?? '';
-                                        $productKey = htmlspecialchars($productKeyRaw);
+                                        $diamondAmount = $package->get('diamondAmount') ?? 0;
+                                        $coinAmount = $package->get('coinAmount') ?? 0;
                                         $isActive = $package->get('isActive') ?? false;
                                         $activeToggle = $isActive ? '0' : '1';
                                         $packageNameJs = htmlspecialchars(addslashes($packageNameRaw), ENT_QUOTES);
-                                        $productKeyJs = htmlspecialchars(addslashes($productKeyRaw), ENT_QUOTES);
+                                        $rateText = number_format($diamondAmount) . ' Diamond = ' . number_format($coinAmount) . ' Coin';
 
                                         echo '
                                         <tr>
                                             <td>'.$index.'</td>
                                             <td><span class="package-badge">📦</span> '.$packageName.'</td>
-                                            <td>'.number_format($coins).'</td>
-                                            <td>'.number_format($amount).' $</td>
-                                            <td>'.$productKey.'</td>
+                                            <td>'.number_format($diamondAmount).'</td>
+                                            <td>'.number_format($coinAmount).'</td>
+                                            <td><span class="package-ratio">'.$rateText.'</span></td>
                                             <td>
                                                 <form method="post" style="display:inline;">
                                                     <input type="hidden" name="action" value="toggle_active">
@@ -263,7 +258,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_package') {
                                                 </form>
                                             </td>
                                             <td>
-                                                <button class="action-btn edit" onclick="openEditPackageModal(\''.$packageId.'\', \''.$packageNameJs.'\', '.$coins.', '.$amount.', \''.$productKeyJs.'\')" title="Edit">
+                                                <button class="action-btn edit" onclick="openEditPackageModal(\''.$packageId.'\', \''.$packageNameJs.'\', '.$diamondAmount.', '.$coinAmount.')" title="Edit">
                                                     <i class="fa fa-pencil"></i>
                                                 </button>
                                                 <form method="post" style="display:inline;" onsubmit="return confirm(\'Are you sure you want to delete this package?\')">
@@ -303,16 +298,12 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_package') {
                 <input type="text" name="package_name" id="package_name" required>
             </div>
             <div class="form-group">
-                <label for="coins">Coins</label>
-                <input type="number" name="coins" id="coins" min="1" required>
+                <label for="diamond_amount">Diamond Amount</label>
+                <input type="number" name="diamond_amount" id="diamond_amount" min="1" required>
             </div>
             <div class="form-group">
-                <label for="amount">Amount ($)</label>
-                <input type="number" name="amount" id="amount" min="1" step="0.01" required>
-            </div>
-            <div class="form-group">
-                <label for="product_key">Product Key</label>
-                <input type="text" name="product_key" id="product_key">
+                <label for="coin_amount">Coin Amount</label>
+                <input type="number" name="coin_amount" id="coin_amount" min="1" required>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn-cancel" onclick="closePackageModal()">Cancel</button>
@@ -328,20 +319,18 @@ function openCreatePackageModal() {
     document.getElementById('package_action').value = 'create_package';
     document.getElementById('package_id').value = '';
     document.getElementById('package_name').value = '';
-    document.getElementById('coins').value = '';
-    document.getElementById('amount').value = '';
-    document.getElementById('product_key').value = '';
+    document.getElementById('diamond_amount').value = '';
+    document.getElementById('coin_amount').value = '';
     document.getElementById('packageModal').classList.add('active');
 }
 
-function openEditPackageModal(id, packageName, coins, amount, productKey) {
+function openEditPackageModal(id, packageName, diamondAmount, coinAmount) {
     document.getElementById('modalTitle').innerText = 'Edit Converter Package';
     document.getElementById('package_action').value = 'edit_package';
     document.getElementById('package_id').value = id;
     document.getElementById('package_name').value = packageName;
-    document.getElementById('coins').value = coins;
-    document.getElementById('amount').value = amount;
-    document.getElementById('product_key').value = productKey;
+    document.getElementById('diamond_amount').value = diamondAmount;
+    document.getElementById('coin_amount').value = coinAmount;
     document.getElementById('packageModal').classList.add('active');
 }
 
