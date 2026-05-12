@@ -164,8 +164,8 @@ if(isset($_POST['val-name']) && isset($_POST['val-credits']) && isset($_FILES['v
                             <div class="form-group row">
                                 <label for="val-file" class="col-sm-4 col-form-label">Gift File / Photo<span class="text-danger">*</span></label>
                                 <div class="col-sm-8">
-                                    <input id="val-file" name="val-file" type="file" accept="application/json,image/png,image/jpeg,image/webp,image/gif" required />
-                                    <div class="invalid-feedback">Please choose a JSON or image file for this gift.</div>
+                                    <input id="val-file" name="val-file" type="file" accept="application/json,image/png,image/jpeg,image/webp,image/gif,image/svg+xml" required />
+                                    <div class="invalid-feedback">Please choose a JSON, image, or SVG file for this gift.</div>
                                     <div class="valid-feedback">Looks good!</div>
                                 </div>
                             </div>
