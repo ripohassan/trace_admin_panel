@@ -95,13 +95,17 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
                         $existingTrader->save(true);
                     }
 
+                    // Update user role to "trader"
+                    $targetUser->set("role", "trader");
+                    $targetUser->save(true);
+
                     $request->set("status", "approved");
                     $request->set("is_approve", true);
                     $request->set("approvedBy", $currUser);
                     $request->set("approvedAt", new DateTime());
                     $request->save(true);
 
-                    $successMsg = "Trader request approved successfully.";
+                    $successMsg = "Trader request approved successfully. User role updated to trader.";
                 }
             }
         } catch (ParseException $e) {
