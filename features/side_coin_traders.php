@@ -13,6 +13,57 @@ session_start();
 $currUser = ParseUser::getCurrentUser();
 if ($currUser) {
     $_SESSION['token'] = $currUser->getSessionToken();
+
+    function syncCoinTraderUserRole($trader, $status, &$syncErrorMsg = '')
+    {
+        global $parse_app_id, $parse_rest_key, $parse_master_key;
+
+        $user = $trader->get('user');
+        if (!$user) {
+            $syncErrorMsg = 'Coin trader user not found.';
+            return false;
+        }
+
+        $desiredRole = ($status === 'approved') ? 'trader' : 'user';
+
+        try {
+            $userObjectId = $user->getObjectId();
+            $payload = json_encode(['role' => $desiredRole]);
+
+            $ch = curl_init('https://parseapi.back4app.com/parse/classes/_User/' . $userObjectId);
+            curl_setopt_array($ch, [
+                CURLOPT_CUSTOMREQUEST => 'PUT',
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'X-Parse-Application-Id: ' . $parse_app_id,
+                    'X-Parse-REST-API-Key: ' . $parse_rest_key,
+                    'X-Parse-Master-Key: ' . $parse_master_key,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_TIMEOUT => 30,
+            ]);
+
+            $responseBody = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($responseBody === false || $curlError) {
+                throw new ParseException('User role sync curl error for ' . $userObjectId . ': ' . $curlError);
+            }
+
+            if ($httpCode < 200 || $httpCode >= 300) {
+                throw new ParseException('User role sync failed for ' . $userObjectId . ' with HTTP ' . $httpCode . ': ' . $responseBody);
+            }
+
+            return true;
+        } catch (ParseException $e) {
+            $syncErrorMsg = $e->getMessage();
+            error_log('Coin trader role sync failed: ' . $e->getMessage());
+            return false;
+        }
+    }
 } else {
     header("Refresh:0; url=../index.php");
 }
@@ -65,6 +116,13 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
             $trader->set("status", $status);
             $trader->set("isActive", $status === 'approved');
             $trader->save(true);
+
+            $syncErrorMsg = '';
+            if (!syncCoinTraderUserRole($trader, $status, $syncErrorMsg)) {
+                $errorMsg = $syncErrorMsg ?: 'Trader status updated, but user role sync failed.';
+            } else {
+                $successMsg = 'Trader status updated and user role synchronized.';
+            }
         } catch (ParseException $e) {
             $errorMsg = $e->getMessage();
         }
