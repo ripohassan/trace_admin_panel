@@ -23,7 +23,7 @@ if ($currUser->get("role") !== "admin") {
 
 $_SESSION['token'] = $currUser->getSessionToken();
 
-function syncUserRoleForTraderRequest($request, $statusOverride = null)
+function syncUserRoleForTraderRequest($request, $statusOverride = null, &$syncErrorMsg = '')
 {
     global $parse_app_id, $parse_rest_key, $parse_master_key;
 
@@ -59,16 +59,17 @@ function syncUserRoleForTraderRequest($request, $statusOverride = null)
         curl_close($ch);
 
         if ($responseBody === false || $curlError) {
-            throw new ParseException('User role sync curl error: ' . $curlError);
+            throw new ParseException('User role sync curl error for ' . $userObjectId . ': ' . $curlError);
         }
 
         if ($httpCode < 200 || $httpCode >= 300) {
-            throw new ParseException('User role sync failed with HTTP ' . $httpCode . ': ' . $responseBody);
+            throw new ParseException('User role sync failed for ' . $userObjectId . ' with HTTP ' . $httpCode . ': ' . $responseBody);
         }
 
         error_log('Trader request role sync ok: ' . $userObjectId . ' => ' . $desiredRole);
         return true;
     } catch (ParseException $e) {
+        $syncErrorMsg = $e->getMessage();
         error_log('Trader request role sync failed: ' . $e->getMessage());
         return false;
     }
@@ -147,7 +148,10 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
                         $existingTrader->save(true);
                     }
 
-                    syncUserRoleForTraderRequest($request, 'approved');
+                    $roleSyncError = '';
+                    if (!syncUserRoleForTraderRequest($request, 'approved', $roleSyncError)) {
+                        $errorMsg = $roleSyncError ?: 'User role update failed while approving trader request.';
+                    }
 
                     $request->set("status", "approved");
                     $request->set("is_approve", true);
@@ -176,7 +180,10 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'rej
             if (($request->get("status") ?? "pending") !== "pending") {
                 $errorMsg = "This request is already processed.";
             } else {
-                syncUserRoleForTraderRequest($request, 'rejected');
+                $roleSyncError = '';
+                if (!syncUserRoleForTraderRequest($request, 'rejected', $roleSyncError)) {
+                    $errorMsg = $roleSyncError ?: 'User role update failed while rejecting trader request.';
+                }
 
                 $request->set("status", "rejected");
                 $request->set("is_approve", false);
@@ -202,7 +209,10 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'sus
             $requestQuery->includeKey("user");
             $request = $requestQuery->get($requestId, true);
 
-            syncUserRoleForTraderRequest($request, 'suspended');
+            $roleSyncError = '';
+            if (!syncUserRoleForTraderRequest($request, 'suspended', $roleSyncError)) {
+                $errorMsg = $roleSyncError ?: 'User role update failed while suspending trader.';
+            }
 
             $request->set("status", "suspended");
             $request->set("suspendedBy", $currUser);
@@ -226,7 +236,10 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'rev
             $requestQuery->includeKey("user");
             $request = $requestQuery->get($requestId, true);
 
-            syncUserRoleForTraderRequest($request, 'pending');
+            $roleSyncError = '';
+            if (!syncUserRoleForTraderRequest($request, 'pending', $roleSyncError)) {
+                $errorMsg = $roleSyncError ?: 'User role update failed while reverting request to pending.';
+            }
 
             $request->set("status", "pending");
             $request->set("is_approve", false);
@@ -252,7 +265,11 @@ if ($traderRequestsReady) {
         $allRequests = $allRequestsQuery->find(true);
 
         foreach ($allRequests as $requestItem) {
-            syncUserRoleForTraderRequest($requestItem);
+            $roleSyncError = '';
+            syncUserRoleForTraderRequest($requestItem, null, $roleSyncError);
+            if ($roleSyncError !== '') {
+                $errorMsg = $roleSyncError;
+            }
         }
     } catch (ParseException $e) {
         $errorMsg = $e->getMessage();
