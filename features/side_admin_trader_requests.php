@@ -25,6 +25,8 @@ $_SESSION['token'] = $currUser->getSessionToken();
 
 function syncUserRoleForTraderRequest($request, $statusOverride = null)
 {
+    global $parse_app_id, $parse_rest_key, $parse_master_key;
+
     $targetUser = $request->get('user');
     if (!$targetUser) {
         return false;
@@ -34,10 +36,37 @@ function syncUserRoleForTraderRequest($request, $statusOverride = null)
     $desiredRole = ($status === 'approved') ? 'trader' : 'user';
 
     try {
-        $userQuery = new ParseQuery('_User');
-        $freshUser = $userQuery->get($targetUser->getObjectId(), true);
-        $freshUser->set('role', $desiredRole);
-        $freshUser->save(true);
+        $userObjectId = $targetUser->getObjectId();
+        $payload = json_encode(['role' => $desiredRole]);
+
+        $ch = curl_init('https://parseapi.back4app.com/parse/classes/_User/' . $userObjectId);
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => 'PUT',
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'X-Parse-Application-Id: ' . $parse_app_id,
+                'X-Parse-REST-API-Key: ' . $parse_rest_key,
+                'X-Parse-Master-Key: ' . $parse_master_key,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $responseBody = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($responseBody === false || $curlError) {
+            throw new ParseException('User role sync curl error: ' . $curlError);
+        }
+
+        if ($httpCode < 200 || $httpCode >= 300) {
+            throw new ParseException('User role sync failed with HTTP ' . $httpCode . ': ' . $responseBody);
+        }
+
+        error_log('Trader request role sync ok: ' . $userObjectId . ' => ' . $desiredRole);
         return true;
     } catch (ParseException $e) {
         error_log('Trader request role sync failed: ' . $e->getMessage());
@@ -93,13 +122,10 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
                     $errorMsg = "User not found in this request.";
                 } else {
                     // Fetch user directly to ensure proper update
-                    $userQuery = new ParseQuery("_User");
-                    $targetUserFresh = $userQuery->get($targetUser->getObjectId(), true);
-                    
                     $existingTrader = null;
                     try {
                         $existingTraderQuery = new ParseQuery("CoinTraders");
-                        $existingTraderQuery->equalTo("user", $targetUserFresh);
+                        $existingTraderQuery->equalTo("user", $targetUser);
                         $existingTrader = $existingTraderQuery->first(true);
                     } catch (ParseException $e) {
                         $existingTrader = null;
@@ -107,7 +133,7 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
 
                     if (!$existingTrader) {
                         $newTrader = ParseObject::create("CoinTraders");
-                        $newTrader->set("user", $targetUserFresh);
+                        $newTrader->set("user", $targetUser);
                         $newTrader->set("coinBalance", 0);
                         $newTrader->set("spentCoins", 0);
                         $newTrader->set("countryCode", $request->get("countryCode") ?? '');
