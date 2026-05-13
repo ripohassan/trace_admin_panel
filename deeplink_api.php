@@ -114,11 +114,70 @@ try {
             ]);
             break;
             
+        case 'rooms':
+            // Return room-related deeplinks
+            $organized = DeepLinkRouter::getOrganized();
+            $room_links = [];
+            if (isset($organized['room_management']['links'])) {
+                foreach ($organized['room_management']['links'] as $name => $data) {
+                    $room_links[$name] = [
+                        'label' => $data['label'],
+                        'path' => $data['path'],
+                        'icon' => $data['icon'],
+                        'url' => DeepLinkRouter::generateUrl($name),
+                        'deeplink' => 'index.php?deeplink=' . $name
+                    ];
+                }
+            }
+            echo json_encode([
+                'status' => 'success',
+                'category' => 'Room Management',
+                'total' => count($room_links),
+                'deeplinks' => $room_links
+            ]);
+            break;
+            
+        case 'category':
+            // Get deeplinks for a specific category
+            $category_name = $_GET['name'] ?? null;
+            if (!$category_name) {
+                http_response_code(400);
+                echo json_encode(['error' => 'category name parameter required']);
+                exit;
+            }
+            
+            $organized = DeepLinkRouter::getOrganized();
+            if (!isset($organized[$category_name])) {
+                http_response_code(404);
+                echo json_encode(['error' => "Category '{$category_name}' not found"]);
+                exit;
+            }
+            
+            $category = $organized[$category_name];
+            $category_links = [];
+            if (isset($category['links'])) {
+                foreach ($category['links'] as $name => $data) {
+                    $category_links[$name] = [
+                        'label' => $data['label'],
+                        'path' => $data['path'],
+                        'icon' => $data['icon'],
+                        'url' => DeepLinkRouter::generateUrl($name)
+                    ];
+                }
+            }
+            echo json_encode([
+                'status' => 'success',
+                'category' => $category['label'],
+                'total' => count($category_links),
+                'deeplinks' => $category_links
+            ]);
+            break;
+            
         default:
             http_response_code(400);
             echo json_encode([
                 'error' => 'Unknown action',
-                'available_actions' => ['list', 'organized', 'url', 'check', 'detailed']
+                'available_actions' => ['list', 'organized', 'rooms', 'category', 'url', 'check', 'detailed']
             ]);
     }
 } catch (Exception $e) {

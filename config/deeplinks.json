@@ -210,6 +210,36 @@
         }
       }
     },
+    "room_management": {
+      "label": "Room Management",
+      "links": {
+        "rooms": {
+          "path": "dashboard/rooms.php",
+          "label": "All Rooms",
+          "icon": "fa-door-open"
+        },
+        "add_room": {
+          "path": "dashboard/add_room.php",
+          "label": "Add Room",
+          "icon": "fa-plus"
+        },
+        "edit_room": {
+          "path": "dashboard/edit_room.php",
+          "label": "Edit Room",
+          "icon": "fa-edit"
+        },
+        "room_users": {
+          "path": "dashboard/room_users.php",
+          "label": "Room Users",
+          "icon": "fa-users"
+        },
+        "room_settings": {
+          "path": "dashboard/room_settings.php",
+          "label": "Room Settings",
+          "icon": "fa-cog"
+        }
+      }
+    },
     "other": {
       "label": "Other",
       "links": {
