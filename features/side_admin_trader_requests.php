@@ -120,18 +120,26 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'rej
     if ($requestId !== '') {
         try {
             $requestQuery = new ParseQuery("TraderRequests");
+            $requestQuery->includeKey("user");
             $request = $requestQuery->get($requestId, true);
 
             if (($request->get("status") ?? "pending") !== "pending") {
                 $errorMsg = "This request is already processed.";
             } else {
+                // Get the user and reset role to "user"
+                $targetUser = $request->get("user");
+                if ($targetUser) {
+                    $targetUser->set("role", "user");
+                    $targetUser->save(true);
+                }
+
                 $request->set("status", "rejected");
                 $request->set("is_approve", false);
                 $request->set("rejectedBy", $currUser);
                 $request->set("rejectedAt", new DateTime());
                 $request->save(true);
 
-                $successMsg = "Trader request rejected.";
+                $successMsg = "Trader request rejected. User role reset to user.";
             }
         } catch (ParseException $e) {
             $errorMsg = $e->getMessage();
