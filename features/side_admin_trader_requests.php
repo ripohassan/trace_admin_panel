@@ -70,10 +70,14 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
                 if (!$targetUser) {
                     $errorMsg = "User not found in this request.";
                 } else {
+                    // Fetch user directly to ensure proper update
+                    $userQuery = new ParseQuery("_User");
+                    $targetUserFresh = $userQuery->get($targetUser->getObjectId(), true);
+                    
                     $existingTrader = null;
                     try {
                         $existingTraderQuery = new ParseQuery("CoinTraders");
-                        $existingTraderQuery->equalTo("user", $targetUser);
+                        $existingTraderQuery->equalTo("user", $targetUserFresh);
                         $existingTrader = $existingTraderQuery->first(true);
                     } catch (ParseException $e) {
                         $existingTrader = null;
@@ -81,7 +85,7 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
 
                     if (!$existingTrader) {
                         $newTrader = ParseObject::create("CoinTraders");
-                        $newTrader->set("user", $targetUser);
+                        $newTrader->set("user", $targetUserFresh);
                         $newTrader->set("coinBalance", 0);
                         $newTrader->set("spentCoins", 0);
                         $newTrader->set("countryCode", $request->get("countryCode") ?? '');
@@ -95,9 +99,11 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
                         $existingTrader->save(true);
                     }
 
-                    // Update user role to "trader"
-                    $targetUser->set("role", "trader");
-                    $targetUser->save(true);
+                    // Update user role to "trader" - directly on fresh user object
+                    $targetUserFresh->set("role", "trader");
+                    $targetUserFresh->save(true);
+                    
+                    error_log("User role updated for: " . $targetUserFresh->get("username") . " -> " . $targetUserFresh->get("role"));
 
                     $request->set("status", "approved");
                     $request->set("is_approve", true);
