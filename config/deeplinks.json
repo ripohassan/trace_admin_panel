@@ -1,0 +1,234 @@
+{
+  "deeplinks": {
+    "user_management": {
+      "label": "User Management",
+      "links": {
+        "users": {
+          "path": "dashboard/all_users.php",
+          "label": "All Users",
+          "icon": "fa-users"
+        },
+        "admin_users": {
+          "path": "dashboard/admin_users.php",
+          "label": "Admin Users",
+          "icon": "fa-shield"
+        },
+        "edit_user": {
+          "path": "dashboard/edit_user.php",
+          "label": "Edit User",
+          "icon": "fa-edit"
+        }
+      }
+    },
+    "ads_management": {
+      "label": "Ads Management",
+      "links": {
+        "ads": {
+          "path": "dashboard/all_ads.php",
+          "label": "All Ads",
+          "icon": "fa-bullhorn"
+        },
+        "add_ad": {
+          "path": "dashboard/add_ad.php",
+          "label": "Add New Ad",
+          "icon": "fa-plus"
+        },
+        "edit_ad": {
+          "path": "dashboard/edit_ad.php",
+          "label": "Edit Ad",
+          "icon": "fa-edit"
+        },
+        "ads_settings": {
+          "path": "dashboard/ads_settings.php",
+          "label": "Ads Settings",
+          "icon": "fa-cog"
+        }
+      }
+    },
+    "payments_withdrawals": {
+      "label": "Payments & Withdrawals",
+      "links": {
+        "payments": {
+          "path": "dashboard/payments.php",
+          "label": "Payments",
+          "icon": "fa-credit-card"
+        },
+        "payouts": {
+          "path": "dashboard/payouts.php",
+          "label": "Payouts",
+          "icon": "fa-money"
+        },
+        "pending_withdrawals": {
+          "path": "dashboard/pending_withdrawals.php",
+          "label": "Pending Withdrawals",
+          "icon": "fa-hourglass"
+        },
+        "withdrawals": {
+          "path": "dashboard/withdrawals.php",
+          "label": "All Withdrawals",
+          "icon": "fa-arrow-down"
+        },
+        "coin_requests": {
+          "path": "dashboard/coin_requests.php",
+          "label": "Coin Requests",
+          "icon": "fa-coins"
+        },
+        "coin_traders": {
+          "path": "dashboard/coin_traders.php",
+          "label": "Coin Traders",
+          "icon": "fa-exchange"
+        }
+      }
+    },
+    "agency": {
+      "label": "Agency Management",
+      "links": {
+        "agency": {
+          "path": "dashboard/agency_list.php",
+          "label": "Agency List",
+          "icon": "fa-building"
+        },
+        "agency_applications": {
+          "path": "dashboard/agency_applications.php",
+          "label": "Agency Applications",
+          "icon": "fa-file"
+        },
+        "agency_members": {
+          "path": "dashboard/agency_members.php",
+          "label": "Agency Members",
+          "icon": "fa-users"
+        }
+      }
+    },
+    "content_management": {
+      "label": "Content Management",
+      "links": {
+        "gifts": {
+          "path": "dashboard/gift.php",
+          "label": "Gifts",
+          "icon": "fa-gift"
+        },
+        "gift_categories": {
+          "path": "dashboard/gift_category.php",
+          "label": "Gift Categories",
+          "icon": "fa-tags"
+        },
+        "announcements": {
+          "path": "dashboard/announcement.php",
+          "label": "Announcements",
+          "icon": "fa-megaphone"
+        },
+        "banners": {
+          "path": "dashboard/banners.php",
+          "label": "Banners",
+          "icon": "fa-image"
+        },
+        "categories": {
+          "path": "dashboard/category.php",
+          "label": "Categories",
+          "icon": "fa-folder"
+        }
+      }
+    },
+    "frames_effects": {
+      "label": "Frames, Effects & Themes",
+      "links": {
+        "avatar_frames": {
+          "path": "dashboard/avatar_frame.php",
+          "label": "Avatar Frames",
+          "icon": "fa-square"
+        },
+        "entrance_effects": {
+          "path": "dashboard/entrance_effect.php",
+          "label": "Entrance Effects",
+          "icon": "fa-star"
+        },
+        "party_themes": {
+          "path": "dashboard/party_theme.php",
+          "label": "Party Themes",
+          "icon": "fa-palette"
+        }
+      }
+    },
+    "analytics": {
+      "label": "Analytics & Stats",
+      "links": {
+        "comments": {
+          "path": "dashboard/comments.php",
+          "label": "Comments",
+          "icon": "fa-comment"
+        },
+        "clicks": {
+          "path": "dashboard/clicks.php",
+          "label": "Clicks",
+          "icon": "fa-mouse"
+        },
+        "calls": {
+          "path": "dashboard/calls.php",
+          "label": "Calls",
+          "icon": "fa-phone"
+        },
+        "follows": {
+          "path": "dashboard/follow.php",
+          "label": "Follows",
+          "icon": "fa-heart"
+        },
+        "favorites": {
+          "path": "dashboard/favorites.php",
+          "label": "Favorites",
+          "icon": "fa-star"
+        }
+      }
+    },
+    "coins_converter": {
+      "label": "Coins & Converter",
+      "links": {
+        "coin_plans": {
+          "path": "dashboard/coin_plans.php",
+          "label": "Coin Plans",
+          "icon": "fa-coins"
+        },
+        "converter_packages": {
+          "path": "dashboard/converter_packages.php",
+          "label": "Converter Packages",
+          "icon": "fa-exchange"
+        }
+      }
+    },
+    "approvals": {
+      "label": "Content Approvals",
+      "links": {
+        "photo_approvals": {
+          "path": "dashboard/photo_aproval.php",
+          "label": "Photo Approvals",
+          "icon": "fa-check-circle"
+        },
+        "hangout_approvals": {
+          "path": "dashboard/hangout_aproval.php",
+          "label": "Hangout Approvals",
+          "icon": "fa-check-circle"
+        }
+      }
+    },
+    "other": {
+      "label": "Other",
+      "links": {
+        "messages": {
+          "path": "dashboard/messages.php",
+          "label": "Messages",
+          "icon": "fa-envelope"
+        },
+        "panel": {
+          "path": "dashboard/panel.php",
+          "label": "Main Dashboard",
+          "icon": "fa-dashboard"
+        },
+        "dashboard": {
+          "path": "dashboard/panel.php",
+          "label": "Dashboard",
+          "icon": "fa-dashboard"
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,9 @@ require 'vendor/autoload.php';
 include 'Configs.php';
 include 'DeepLinkRouter.php';
 
+// Initialize the router with config
+DeepLinkRouter::init();
+
 use Parse\ParseUser;
 
 // Check for deeplink parameter first

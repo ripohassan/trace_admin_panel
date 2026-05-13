@@ -1,6 +1,7 @@
 <?php
 /**
  * DeepLink Router - Handles URL deeplinks and routes to appropriate pages
+ * Reads configuration from config/deeplinks.json
  * 
  * Usage:
  * - ?deeplink=users
@@ -12,65 +13,57 @@
 class DeepLinkRouter {
     
     /**
-     * Deeplink mapping - Maps short identifiers to dashboard files
+     * Configuration file path
      */
-    private static $deeplinks = [
-        // User Management
-        'users' => 'dashboard/all_users.php',
-        'admin_users' => 'dashboard/admin_users.php',
-        'edit_user' => 'dashboard/edit_user.php',
+    private static $config_file = null;
+    
+    /**
+     * Cached deeplinks array
+     */
+    private static $deeplinks = null;
+    
+    /**
+     * Initialize the router with config file path
+     */
+    public static function init($config_path = null) {
+        if ($config_path === null) {
+            $config_path = __DIR__ . '/config/deeplinks.json';
+        }
+        self::$config_file = $config_path;
+        self::loadConfig();
+    }
+    
+    /**
+     * Load configuration from JSON file
+     */
+    private static function loadConfig() {
+        if (!file_exists(self::$config_file)) {
+            error_log("Deeplink config file not found: " . self::$config_file);
+            self::$deeplinks = [];
+            return;
+        }
         
-        // Ads Management
-        'ads' => 'dashboard/all_ads.php',
-        'add_ad' => 'dashboard/add_ad.php',
-        'edit_ad' => 'dashboard/edit_ad.php',
+        $json_content = file_get_contents(self::$config_file);
+        $config = json_decode($json_content, true);
         
-        // Payments & Payouts
-        'payments' => 'dashboard/payments.php',
-        'payouts' => 'dashboard/payouts.php',
-        'pending_withdrawals' => 'dashboard/pending_withdrawals.php',
-        'withdrawals' => 'dashboard/withdrawals.php',
-        'coin_requests' => 'dashboard/coin_requests.php',
-        'coin_traders' => 'dashboard/coin_traders.php',
+        if (!$config || !isset($config['deeplinks'])) {
+            error_log("Invalid deeplink config format");
+            self::$deeplinks = [];
+            return;
+        }
         
-        // Agency
-        'agency' => 'dashboard/agency_list.php',
-        'agency_applications' => 'dashboard/agency_applications.php',
-        'agency_members' => 'dashboard/agency_members.php',
-        
-        // Content Management
-        'gifts' => 'dashboard/gift.php',
-        'gift_categories' => 'dashboard/gift_category.php',
-        'ads_settings' => 'dashboard/ads_settings.php',
-        'announcements' => 'dashboard/announcement.php',
-        'banners' => 'dashboard/banners.php',
-        'categories' => 'dashboard/category.php',
-        
-        // Frames & Effects
-        'avatar_frames' => 'dashboard/avatar_frame.php',
-        'entrance_effects' => 'dashboard/entrance_effect.php',
-        'party_themes' => 'dashboard/party_theme.php',
-        
-        // Stats & Analytics
-        'comments' => 'dashboard/comments.php',
-        'clicks' => 'dashboard/clicks.php',
-        'calls' => 'dashboard/calls.php',
-        'follows' => 'dashboard/follow.php',
-        'favorites' => 'dashboard/favorites.php',
-        
-        // Coins & Converter
-        'coin_plans' => 'dashboard/coin_plans.php',
-        'converter_packages' => 'dashboard/converter_packages.php',
-        
-        // Approvals
-        'photo_approvals' => 'dashboard/photo_aproval.php',
-        'hangout_approvals' => 'dashboard/hangout_aproval.php',
-        
-        // Other
-        'messages' => 'dashboard/messages.php',
-        'panel' => 'dashboard/panel.php',
-        'dashboard' => 'dashboard/panel.php',
-    ];
+        // Flatten the nested structure
+        self::$deeplinks = [];
+        foreach ($config['deeplinks'] as $category => $data) {
+            if (isset($data['links']) && is_array($data['links'])) {
+                foreach ($data['links'] as $name => $link_data) {
+                    if (isset($link_data['path'])) {
+                        self::$deeplinks[$name] = $link_data['path'];
+                    }
+                }
+            }
+        }
+    }
     
     /**
      * Get the file path for a deeplink
@@ -79,6 +72,9 @@ class DeepLinkRouter {
      * @return string|null The file path or null if not found
      */
     public static function getPath($deeplink) {
+        if (self::$deeplinks === null) {
+            self::init();
+        }
         $deeplink = strtolower(trim($deeplink));
         return self::$deeplinks[$deeplink] ?? null;
     }
@@ -90,6 +86,9 @@ class DeepLinkRouter {
      * @return bool True if deeplink exists
      */
     public static function exists($deeplink) {
+        if (self::$deeplinks === null) {
+            self::init();
+        }
         return isset(self::$deeplinks[strtolower(trim($deeplink))]);
     }
     
@@ -99,7 +98,27 @@ class DeepLinkRouter {
      * @return array Associative array of deeplink => path
      */
     public static function getAll() {
+        if (self::$deeplinks === null) {
+            self::init();
+        }
         return self::$deeplinks;
+    }
+    
+    /**
+     * Get organized deeplinks by category (from raw config)
+     * 
+     * @return array Organized deeplinks with categories and metadata
+     */
+    public static function getOrganized() {
+        if (!file_exists(self::$config_file ?? __DIR__ . '/config/deeplinks.json')) {
+            return [];
+        }
+        
+        $config_file = self::$config_file ?? __DIR__ . '/config/deeplinks.json';
+        $json_content = file_get_contents($config_file);
+        $config = json_decode($json_content, true);
+        
+        return $config['deeplinks'] ?? [];
     }
     
     /**

@@ -1,7 +1,9 @@
 # Deeplink Setup Guide
 
 ## Overview
-The deeplink system allows you to create short, shareable URLs that redirect to specific admin panel pages. This is useful for quickly navigating to important sections or sending direct links to team members.
+The deeplink system allows you to create short, shareable URLs that redirect to specific admin panel pages. The system uses a JSON-based configuration for easy management and extensibility.
+
+**Configuration File:** `config/deeplinks.json`
 
 ## URL Format
 
@@ -89,6 +91,9 @@ https://myapp.com/index.php?deeplink=agencies
 
 ### PHP Code
 ```php
+// Initialize the router
+DeepLinkRouter::init();
+
 // Using the DeepLinkRouter class
 $url = DeepLinkRouter::generateUrl('users');
 // Output: https://yourdomain.com/index.php?deeplink=users
@@ -101,11 +106,17 @@ if (DeepLinkRouter::exists('users')) {
 // Getting the file path
 $path = DeepLinkRouter::getPath('users');
 // Output: dashboard/all_users.php
+
+// Get all deeplinks
+$all = DeepLinkRouter::getAll();
+
+// Get organized deeplinks by category (with metadata)
+$organized = DeepLinkRouter::getOrganized();
 ```
 
 ## API Endpoints
 
-### List All Deeplinks
+### List All Deeplinks (Flat)
 ```
 GET /deeplink_api.php?action=list
 ```
@@ -117,6 +128,33 @@ GET /deeplink_api.php?action=list
   "total": 45,
   "deeplinks": ["users", "ads", "payments", ...],
   "format": "index.php?deeplink=<name>"
+}
+```
+
+### Get Deeplinks by Category (Default)
+```
+GET /deeplink_api.php?action=organized
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "total": 45,
+  "deeplinks": {
+    "user_management": {
+      "label": "User Management",
+      "links": {
+        "users": {
+          "path": "dashboard/all_users.php",
+          "label": "All Users",
+          "icon": "fa-users"
+        },
+        ...
+      }
+    },
+    ...
+  }
 }
 ```
 
@@ -170,23 +208,59 @@ GET /deeplink_api.php?action=detailed
 }
 ```
 
+## Configuration
+
+### Modifying Deeplinks
+
+The deeplink configuration is stored in `config/deeplinks.json`. Each deeplink is organized by category.
+
+**Structure:**
+```json
+{
+  "deeplinks": {
+    "category_name": {
+      "label": "Category Label",
+      "links": {
+        "deeplink_name": {
+          "path": "path/to/page.php",
+          "label": "Display Label",
+          "icon": "fa-icon-name"
+        }
+      }
+    }
+  }
+}
+```
+
+### Adding a New Deeplink
+
+1. Open `config/deeplinks.json`
+2. Find or create the appropriate category
+3. Add a new link entry:
+   ```json
+   "my_new_page": {
+     "path": "dashboard/my_new_page.php",
+     "label": "My New Page",
+     "icon": "fa-star"
+   }
+   ```
+4. Save the file
+5. Use it: `index.php?deeplink=my_new_page`
+
 ## Security Considerations
 
 1. **Authentication Required**: Users must be logged in to access deeplinked pages. If not logged in, they're redirected to the login page.
 2. **Role-based Access**: The admin panel's existing permission system applies to all deeplinks.
 3. **File Validation**: The system checks if the target file exists before redirecting.
 4. **Error Handling**: Invalid deeplinks are logged and redirect to the main dashboard.
+5. **JSON Validation**: Configuration is validated on load; invalid configs gracefully fall back to empty array.
 
-## Adding New Deeplinks
+## Files Involved
 
-To add a new deeplink:
-
-1. Open `DeepLinkRouter.php`
-2. Add a new entry to the `$deeplinks` array:
-   ```php
-   'my_new_page' => 'dashboard/my_new_page.php',
-   ```
-3. Use it: `index.php?deeplink=my_new_page`
+- **config/deeplinks.json** - Central configuration file
+- **DeepLinkRouter.php** - Core deeplink routing class
+- **deeplink_api.php** - API endpoint for managing deeplinks
+- **index.php** - Modified to handle deeplink parameters
 
 ## Testing
 
@@ -195,11 +269,12 @@ You can test deeplinks in multiple ways:
 ### Command Line
 ```bash
 curl "https://yourdomain.com/deeplink_api.php?action=list"
+curl "https://yourdomain.com/deeplink_api.php?action=organized"
 curl "https://yourdomain.com/deeplink_api.php?action=url&deeplink=users"
 ```
 
 ### Browser
-Visit: `https://yourdomain.com/deeplink_api.php?action=detailed`
+Visit: `https://yourdomain.com/deeplink_api.php?action=organized`
 
 ### Direct Link
 Visit: `https://yourdomain.com/index.php?deeplink=users`
@@ -207,7 +282,7 @@ Visit: `https://yourdomain.com/index.php?deeplink=users`
 ## Troubleshooting
 
 ### Deeplink not working?
-- Verify the deeplink name exists in `DeepLinkRouter::$deeplinks`
+- Verify the deeplink name exists in `config/deeplinks.json`
 - Check that the target file path exists
 - Ensure you're logged in
 - Check error logs for details
@@ -215,14 +290,13 @@ Visit: `https://yourdomain.com/index.php?deeplink=users`
 ### Getting "Unknown deeplink" error?
 - Double-check the spelling (deeplinks are case-insensitive)
 - Verify the deeplink exists using the API: `deeplink_api.php?action=check&deeplink=<name>`
-- Review the file at [deeplink_api.php](deeplink_api.php?action=detailed) for all available deeplinks
+- Review the configuration: `deeplink_api.php?action=organized`
 
-## Files Involved
-
-- **DeepLinkRouter.php** - Core deeplink routing class
-- **deeplink_api.php** - API endpoint for managing deeplinks
-- **index.php** - Modified to handle deeplink parameters
+### Configuration not loading?
+- Verify `config/deeplinks.json` is readable
+- Check JSON syntax validity using an online JSON validator
+- Check PHP error logs
 
 ---
 
-**Need to add more deeplinks?** Simply update the `$deeplinks` array in `DeepLinkRouter.php`!
+**Need to add or modify deeplinks?** Simply update `config/deeplinks.json`!

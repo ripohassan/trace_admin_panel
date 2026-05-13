@@ -4,6 +4,7 @@
  * 
  * Usage:
  * - GET /deeplink_api.php?action=list - List all deeplinks
+ * - GET /deeplink_api.php?action=organized - List deeplinks by category
  * - GET /deeplink_api.php?action=url&deeplink=users - Get URL for deeplink
  * - GET /deeplink_api.php?action=check&deeplink=users - Check if deeplink exists
  */
@@ -11,6 +12,9 @@
 require 'vendor/autoload.php';
 include 'Configs.php';
 include 'DeepLinkRouter.php';
+
+// Initialize the router
+DeepLinkRouter::init();
 
 use Parse\ParseUser;
 
@@ -24,19 +28,35 @@ header('Content-Type: application/json');
 //     exit;
 // }
 
-$action = $_GET['action'] ?? 'list';
+$action = $_GET['action'] ?? 'organized';
 $deeplink = $_GET['deeplink'] ?? null;
 
 try {
     switch ($action) {
         case 'list':
-            // Return all available deeplinks
+            // Return all available deeplinks (flat list)
             $deeplinks = DeepLinkRouter::getAll();
             echo json_encode([
                 'status' => 'success',
                 'total' => count($deeplinks),
                 'deeplinks' => array_keys($deeplinks),
                 'format' => 'index.php?deeplink=<name>'
+            ]);
+            break;
+            
+        case 'organized':
+            // Return deeplinks organized by category with metadata
+            $organized = DeepLinkRouter::getOrganized();
+            $total = 0;
+            foreach ($organized as $category) {
+                if (isset($category['links'])) {
+                    $total += count($category['links']);
+                }
+            }
+            echo json_encode([
+                'status' => 'success',
+                'total' => $total,
+                'deeplinks' => $organized
             ]);
             break;
             
@@ -98,7 +118,7 @@ try {
             http_response_code(400);
             echo json_encode([
                 'error' => 'Unknown action',
-                'available_actions' => ['list', 'url', 'check', 'detailed']
+                'available_actions' => ['list', 'organized', 'url', 'check', 'detailed']
             ]);
     }
 } catch (Exception $e) {
