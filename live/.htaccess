@@ -1,0 +1,25 @@
+# Deep Link Handler - No Authentication Required
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Allow /live.php direct access without authentication
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    
+    # Route /live to live.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^live/?$ live.php [L,QSA]
+</IfModule>
+
+# MIME Types
+<IfModule mod_mime.c>
+    AddType text/html .php
+    AddType application/json .json
+</IfModule>
+
+# Cache Control
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=3600"
+</IfModule>

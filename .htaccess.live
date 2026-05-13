@@ -1,0 +1,27 @@
+# Deep Link Handler for /live route
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirect /live requests to live.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^live/?$ live.php [L,QSA]
+</IfModule>
+
+# MIME Types
+<IfModule mod_mime.c>
+    AddType application/json .json
+</IfModule>
+
+# Cache Control
+<IfModule mod_headers.c>
+    # Cache HTML pages for 1 hour
+    <FilesMatch "\.html?$">
+        Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+    
+    # Cache JSON for 24 hours
+    <FilesMatch "\.json$">
+        Header set Cache-Control "public, max-age=86400"
+    </FilesMatch>
+</IfModule>
