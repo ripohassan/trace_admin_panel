@@ -147,6 +147,65 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'rej
     }
 }
 
+// Handle suspend trader action
+if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'suspend_trader') {
+    $requestId = $_POST['request_id'] ?? '';
+
+    if ($requestId !== '') {
+        try {
+            $requestQuery = new ParseQuery("TraderRequests");
+            $requestQuery->includeKey("user");
+            $request = $requestQuery->get($requestId, true);
+
+            $targetUser = $request->get("user");
+            if ($targetUser) {
+                // Reset role to "user" when suspending
+                $targetUser->set("role", "user");
+                $targetUser->save(true);
+            }
+
+            $request->set("status", "suspended");
+            $request->set("suspendedBy", $currUser);
+            $request->set("suspendedAt", new DateTime());
+            $request->save(true);
+
+            $successMsg = "Trader suspended. User role reset to user.";
+        } catch (ParseException $e) {
+            $errorMsg = $e->getMessage();
+        }
+    }
+}
+
+// Handle revert to pending action
+if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'revert_to_pending') {
+    $requestId = $_POST['request_id'] ?? '';
+
+    if ($requestId !== '') {
+        try {
+            $requestQuery = new ParseQuery("TraderRequests");
+            $requestQuery->includeKey("user");
+            $request = $requestQuery->get($requestId, true);
+
+            $targetUser = $request->get("user");
+            if ($targetUser) {
+                // Reset role to "user" when reverting to pending
+                $targetUser->set("role", "user");
+                $targetUser->save(true);
+            }
+
+            $request->set("status", "pending");
+            $request->set("is_approve", false);
+            $request->set("revertedBy", $currUser);
+            $request->set("revertedAt", new DateTime());
+            $request->save(true);
+
+            $successMsg = "Request reverted to pending. User role reset to user.";
+        } catch (ParseException $e) {
+            $errorMsg = $e->getMessage();
+        }
+    }
+}
+
 $allRequests = [];
 if ($traderRequestsReady) {
     try {
@@ -233,8 +292,10 @@ if ($traderRequestsReady) {
                                                 <span class="badge badge-success">Approved</span>
                                             <?php elseif ($status === 'rejected'): ?>
                                                 <span class="badge badge-danger">Rejected</span>
+                                            <?php elseif ($status === 'suspended'): ?>
+                                                <span class="badge badge-warning">Suspended</span>
                                             <?php else: ?>
-                                                <span class="badge badge-warning">Pending</span>
+                                                <span class="badge badge-info">Pending</span>
                                             <?php endif; ?>
                                         </td>
                                         <td><?php echo $isApprove; ?></td>
@@ -250,6 +311,23 @@ if ($traderRequestsReady) {
                                                     <input type="hidden" name="action" value="reject_trader_request">
                                                     <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($requestId); ?>">
                                                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Reject this trader request?');">Reject</button>
+                                                </form>
+                                            <?php elseif ($status === 'approved'): ?>
+                                                <form method="post" style="display:inline;">
+                                                    <input type="hidden" name="action" value="suspend_trader">
+                                                    <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($requestId); ?>">
+                                                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Suspend this trader? User role will be reset to user.');">Suspend</button>
+                                                </form>
+                                                <form method="post" style="display:inline; margin-left: 4px;">
+                                                    <input type="hidden" name="action" value="revert_to_pending">
+                                                    <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($requestId); ?>">
+                                                    <button type="submit" class="btn btn-info btn-sm" onclick="return confirm('Revert to pending? User role will be reset to user.');">Revert</button>
+                                                </form>
+                                            <?php elseif ($status === 'suspended'): ?>
+                                                <form method="post" style="display:inline;">
+                                                    <input type="hidden" name="action" value="revert_to_pending">
+                                                    <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($requestId); ?>">
+                                                    <button type="submit" class="btn btn-info btn-sm" onclick="return confirm('Revert to pending?');">Revert</button>
                                                 </form>
                                             <?php else: ?>
                                                 <span class="text-muted">Completed</span>
