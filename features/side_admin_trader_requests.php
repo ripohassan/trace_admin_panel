@@ -23,6 +23,28 @@ if ($currUser->get("role") !== "admin") {
 
 $_SESSION['token'] = $currUser->getSessionToken();
 
+function syncUserRoleForTraderRequest($request, $statusOverride = null)
+{
+    $targetUser = $request->get('user');
+    if (!$targetUser) {
+        return false;
+    }
+
+    $status = $statusOverride ?? ($request->get('status') ?? 'pending');
+    $desiredRole = ($status === 'approved') ? 'trader' : 'user';
+
+    try {
+        $userQuery = new ParseQuery('_User');
+        $freshUser = $userQuery->get($targetUser->getObjectId(), true);
+        $freshUser->set('role', $desiredRole);
+        $freshUser->save(true);
+        return true;
+    } catch (ParseException $e) {
+        error_log('Trader request role sync failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
 function ensureTraderRequestsClassExists($seedUser, &$schemaErrorMsg = '')
 {
     try {
@@ -99,11 +121,7 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'app
                         $existingTrader->save(true);
                     }
 
-                    // Update user role to "trader" - directly on fresh user object
-                    $targetUserFresh->set("role", "trader");
-                    $targetUserFresh->save(true);
-                    
-                    error_log("User role updated for: " . $targetUserFresh->get("username") . " -> " . $targetUserFresh->get("role"));
+                    syncUserRoleForTraderRequest($request, 'approved');
 
                     $request->set("status", "approved");
                     $request->set("is_approve", true);
@@ -132,12 +150,7 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'rej
             if (($request->get("status") ?? "pending") !== "pending") {
                 $errorMsg = "This request is already processed.";
             } else {
-                // Get the user and reset role to "user"
-                $targetUser = $request->get("user");
-                if ($targetUser) {
-                    $targetUser->set("role", "user");
-                    $targetUser->save(true);
-                }
+                syncUserRoleForTraderRequest($request, 'rejected');
 
                 $request->set("status", "rejected");
                 $request->set("is_approve", false);
@@ -163,12 +176,7 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'sus
             $requestQuery->includeKey("user");
             $request = $requestQuery->get($requestId, true);
 
-            $targetUser = $request->get("user");
-            if ($targetUser) {
-                // Reset role to "user" when suspending
-                $targetUser->set("role", "user");
-                $targetUser->save(true);
-            }
+            syncUserRoleForTraderRequest($request, 'suspended');
 
             $request->set("status", "suspended");
             $request->set("suspendedBy", $currUser);
@@ -192,12 +200,7 @@ if ($traderRequestsReady && isset($_POST['action']) && $_POST['action'] === 'rev
             $requestQuery->includeKey("user");
             $request = $requestQuery->get($requestId, true);
 
-            $targetUser = $request->get("user");
-            if ($targetUser) {
-                // Reset role to "user" when reverting to pending
-                $targetUser->set("role", "user");
-                $targetUser->save(true);
-            }
+            syncUserRoleForTraderRequest($request, 'pending');
 
             $request->set("status", "pending");
             $request->set("is_approve", false);
@@ -221,6 +224,10 @@ if ($traderRequestsReady) {
         $allRequestsQuery->descending("createdAt");
         $allRequestsQuery->limit(1000);
         $allRequests = $allRequestsQuery->find(true);
+
+        foreach ($allRequests as $requestItem) {
+            syncUserRoleForTraderRequest($requestItem);
+        }
     } catch (ParseException $e) {
         $errorMsg = $e->getMessage();
     }
