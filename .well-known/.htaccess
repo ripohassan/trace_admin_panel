@@ -1,0 +1,24 @@
+# .well-known Assets Configuration
+
+# Enable rewrite engine
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /.well-known/
+    
+    # Serve assetlinks.json from tools directory
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^assetlinks\.json$ index.php [L,QSA]
+</IfModule>
+
+# Set correct MIME types
+<IfModule mod_mime.c>
+    AddType application/json .json
+</IfModule>
+
+# Allow cross-origin access
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+    Header set Cache-Control "public, max-age=86400"
+</IfModule>
