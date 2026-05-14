@@ -94,7 +94,7 @@
     <p>This Privacy Statement may be updated periodically. The latest version will be accessible within the app. Using the service after updates indicates your agreement with the revised terms.</p>
 
     <h2>10. Contact Information</h2>
-    <p>For questions regarding privacy or to submit a data-related request, please contact our team through the MyParty in-app help center or via the official support email address: <a href="mailto:angelahoan113@gmail.com">angelahoan113@gmail.com</a>.</p>
+    <p>For questions regarding privacy or to submit a data-related request, please contact our team through the MyParty in-app help center or via the official support email address: <a href="mailto:myparty253@gmail.com">myparty253@gmail.com</a>.</p>
 
     <footer>
       <p>&copy; <?php echo date('Y'); ?> MyParty — Privacy Policy</p>
