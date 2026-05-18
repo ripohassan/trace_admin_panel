@@ -248,6 +248,7 @@ try {
         padding: 12px;
         border-bottom: 1px solid #eee;
         font-size: 13px;
+        color: #333;
     }
     
     .requests-table tbody tr:hover {
