@@ -8,7 +8,9 @@
       "package_name": "com.chat.myparty",
       "sha256_cert_fingerprints": [
         "BE:AB:28:E7:5C:56:A1:6F:5B:BA:F0:3F:17:90:A6:BB:03:71:2C:6E:A7:09:BB:82:51:B2:59:EC:91:1F:0E:85",
-        "7E:9F:BD:A9:77:BA:32:12:AC:F6:AE:D3:BB:48:C7:F1:EA:B0:33:AD:91:14:55:19:E2:88:56:3F:07:74:A7:4D"
+        "7E:9F:BD:A9:77:BA:32:12:AC:F6:AE:D3:BB:48:C7:F1:EA:B0:33:AD:91:14:55:19:E2:88:56:3F:07:74:A7:4D",
+
+"B1:26:C2:80:7C:17:09:DC:68:82:10:98:CD:D7:EC:81:C1:49:30:C8:9E:2A:9C:9C:04:83:9F:C0:4F:31:1F:C7"
       ]
     }
   }
