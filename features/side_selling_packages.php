@@ -183,8 +183,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_package') {
 
                         <div class="selling-packages-header">
                             <div>
-                                <h2>Selling Packages (Koro)</h2>
-                                <p>Create and manage koro selling packages. Example: $1 = 500 coins</p>
+                                <h2>Selling Packages</h2>
+                                <p>Create and manage selling packages. Example: $1 = 500 coins</p>
                             </div>
                             <button class="btn-create-package" onclick="openCreatePackageModal()">+ Create Package</button>
                         </div>

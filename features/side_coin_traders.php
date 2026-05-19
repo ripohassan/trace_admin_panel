@@ -68,9 +68,93 @@ if ($currUser) {
     header("Refresh:0; url=../index.php");
 }
 
+$potentialTraderCandidates = [];
+try {
+    $existingTraderUserIds = [];
+    $existingTraderQuery = new ParseQuery("CoinTraders");
+    $existingTraderQuery->includeKey("user");
+    $existingTraderQuery->limit(2000);
+    $existingTraders = $existingTraderQuery->find(true);
+
+    foreach ($existingTraders as $existingTrader) {
+        $linkedUser = $existingTrader->get("user");
+        if ($linkedUser) {
+            $existingTraderUserIds[$linkedUser->getObjectId()] = true;
+        }
+    }
+
+    $userQuery = new ParseQuery("_User");
+    $userQuery->descending('createdAt');
+    $userQuery->limit(1000);
+    $allUsers = $userQuery->find(true);
+
+    foreach ($allUsers as $candidateUser) {
+        $candidateRole = strtolower(trim((string) ($candidateUser->get('role') ?? '')));
+        $isSuperAdmin = ($candidateUser->get('isSuperAdmin') ?? false) === true;
+        $candidateUserId = $candidateUser->getObjectId();
+
+        if ($candidateRole === 'admin' || $isSuperAdmin) {
+            continue;
+        }
+
+        if (isset($existingTraderUserIds[$candidateUserId])) {
+            continue;
+        }
+
+        $potentialTraderCandidates[] = $candidateUser;
+    }
+} catch (ParseException $e) {
+    $potentialTraderCandidates = [];
+}
+
 // Handle Create Coin Trader
 if (isset($_POST['action']) && $_POST['action'] === 'create_trader') {
-    $errorMsg = "Manual create disabled. Please approve trader requests from Trader Requests page.";
+    $userId = trim($_POST['user_id'] ?? '');
+    $countryCode = trim($_POST['country_code'] ?? '');
+    $mobileNumber = trim($_POST['mobile_number'] ?? '');
+
+    if ($userId === '' || $countryCode === '' || $mobileNumber === '') {
+        $errorMsg = 'Please select a user and provide both country code and mobile number.';
+    } else {
+        try {
+            $userQuery = new ParseQuery("_User");
+            $targetUser = $userQuery->get($userId, true);
+
+            $targetRole = strtolower(trim((string) ($targetUser->get('role') ?? '')));
+            $isTargetSuperAdmin = ($targetUser->get('isSuperAdmin') ?? false) === true;
+
+            if ($targetRole === 'admin' || $isTargetSuperAdmin) {
+                $errorMsg = 'Admin and super admin accounts cannot be converted to coin traders.';
+            } else {
+                $existingTraderQuery = new ParseQuery("CoinTraders");
+                $existingTraderQuery->equalTo("user", $targetUser);
+                $existingTrader = $existingTraderQuery->first(true);
+
+                if ($existingTrader) {
+                    $errorMsg = 'This user is already a coin trader.';
+                } else {
+                    $newTrader = ParseObject::create("CoinTraders");
+                    $newTrader->set("user", $targetUser);
+                    $newTrader->set("coinBalance", 0);
+                    $newTrader->set("spentCoins", 0);
+                    $newTrader->set("countryCode", $countryCode);
+                    $newTrader->set("mobileNumber", $mobileNumber);
+                    $newTrader->set("isActive", true);
+                    $newTrader->set("status", "approved");
+                    $newTrader->save(true);
+
+                    $syncErrorMsg = '';
+                    if (!syncCoinTraderUserRole($newTrader, 'approved', $syncErrorMsg)) {
+                        $errorMsg = $syncErrorMsg ?: 'Coin trader created, but user role sync failed.';
+                    } else {
+                        $successMsg = 'Coin trader created successfully and user role updated.';
+                    }
+                }
+            }
+        } catch (ParseException $e) {
+            $errorMsg = $e->getMessage();
+        }
+    }
 }
 
 // Handle Toggle Status
@@ -227,15 +311,69 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
                         <div class="page-header-custom">
                             <div>
                                 <h2>Coin Traders</h2>
-                                <p>Traders are added by approving Trader Requests from mobile app users</p>
+                                <p>Admins can approve trader requests or create traders directly from existing users</p>
                             </div>
                             <div class="header-actions">
+                                <button type="button" class="btn-add-trader" onclick="toggleCreateTraderPanel()">+ Create Coin Trader</button>
                                 <input type="text" class="search-box-custom" id="searchTraders" placeholder="Search Coin Traders">
+                            </div>
+                        </div>
+
+                        <div id="createTraderPanel" class="card" style="display:none; margin-bottom: 20px; border-radius: 12px; border: 1px solid #e9ecef;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="m-0">Create Coin Trader</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleCreateTraderPanel(false)">Close</button>
+                                </div>
+
+                                <?php if (empty($potentialTraderCandidates)): ?>
+                                    <div class="alert alert-warning mb-0">No eligible users found to convert into traders.</div>
+                                <?php else: ?>
+                                    <form method="post" class="row">
+                                        <input type="hidden" name="action" value="create_trader">
+                                        <div class="col-md-5">
+                                            <div class="form-group">
+                                                <label for="user_id">Select User</label>
+                                                <select id="user_id" name="user_id" class="form-control" required>
+                                                    <option value="">Choose a user</option>
+                                                    <?php foreach ($potentialTraderCandidates as $candidateUser): ?>
+                                                        <?php
+                                                        $candidateId = htmlspecialchars($candidateUser->getObjectId(), ENT_QUOTES, 'UTF-8');
+                                                        $candidateName = htmlspecialchars((string) ($candidateUser->get('name') ?: $candidateUser->get('username') ?: $candidateUser->get('email') ?: 'Unknown'), ENT_QUOTES, 'UTF-8');
+                                                        $candidateUsername = htmlspecialchars((string) ($candidateUser->get('username') ?? ''), ENT_QUOTES, 'UTF-8');
+                                                        $candidateEmail = htmlspecialchars((string) ($candidateUser->get('email') ?? ''), ENT_QUOTES, 'UTF-8');
+                                                        ?>
+                                                        <option value="<?php echo $candidateId; ?>"><?php echo $candidateName; ?><?php echo $candidateUsername ? ' (@' . $candidateUsername . ')' : ''; ?><?php echo $candidateEmail ? ' - ' . $candidateEmail : ''; ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label for="country_code">Country Code</label>
+                                                <input type="text" id="country_code" name="country_code" class="form-control" placeholder="e.g. +880" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="mobile_number">Mobile Number</label>
+                                                <input type="text" id="mobile_number" name="mobile_number" class="form-control" placeholder="e.g. 1712345678" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 d-flex justify-content-end">
+                                            <button type="submit" class="btn-add-trader">Create Trader</button>
+                                        </div>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </div>
 
                         <?php if (isset($errorMsg)): ?>
                         <div class="alert alert-danger"><?php echo htmlspecialchars($errorMsg); ?></div>
+                        <?php endif; ?>
+
+                        <?php if (isset($successMsg)): ?>
+                        <div class="alert alert-success"><?php echo htmlspecialchars($successMsg); ?></div>
                         <?php endif; ?>
 
                         <div class="table-responsive">
@@ -378,6 +516,20 @@ if (isset($_POST['action']) && $_POST['action'] === 'update_trader_status') {
 </style>
 
 <script>
+function toggleCreateTraderPanel(forceOpen) {
+    var panel = document.getElementById('createTraderPanel');
+    if (!panel) {
+        return;
+    }
+
+    if (typeof forceOpen === 'boolean') {
+        panel.style.display = forceOpen ? 'block' : 'none';
+        return;
+    }
+
+    panel.style.display = panel.style.display === 'none' || panel.style.display === '' ? 'block' : 'none';
+}
+
 function copyText(text) {
     navigator.clipboard.writeText(text);
 }
