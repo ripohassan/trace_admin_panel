@@ -31,7 +31,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $app->set("approvedAt", new DateTime());
             $app->set("approvedBy", $currUser->getObjectId());
             $app->save();
-            $addSuccess = "Application approved successfully!";
+            
+            // Update user role to "agency"
+            $userId = $app->get('userId');
+            if (!empty($userId)) {
+                $userQuery = new ParseQuery("_User");
+                $user = $userQuery->get($userId, true);
+                $user->set("role", "agency");
+                $user->save();
+            }
+            
+            $addSuccess = "Application approved successfully! User role updated to 'agency'.";
         }
     } catch (ParseException $e) {
         $addError = "Error: " . $e->getMessage();
