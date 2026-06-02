@@ -34,11 +34,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             
             // Update user role to "agency"
             $userId = $app->get('userId');
+            if ($userId instanceof ParseObject) {
+                $userId = $userId->getObjectId();
+            }
+            if (is_array($userId) && isset($userId['objectId'])) {
+                $userId = $userId['objectId'];
+            }
+
             if (!empty($userId)) {
                 $userQuery = new ParseQuery("_User");
                 $user = $userQuery->get($userId, true);
-                $user->set("role", "agency");
-                $user->save();
+                if ($user) {
+                    $user->set("role", "agency");
+                    $user->save();
+                }
             }
             
             $addSuccess = "Application approved successfully! User role updated to 'agency'.";
