@@ -22,7 +22,7 @@ $userApplication = null;
 
 // Check if user has already applied
 try {
-    $query = new ParseQuery("AgencyApplication");
+    $query = new ParseQuery("Agency");
     $query->equalTo("userId", $currUser->getObjectId());
     $existing = $query->find(true);
     
@@ -50,19 +50,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             if (empty($fullName) || empty($email) || empty($agencyName) || empty($description)) {
                 $error = "All required fields must be filled.";
             } else {
-                $application = new ParseObject("AgencyApplication");
-                $application->set("userId", $currUser->getObjectId());
-                $application->set("fullName", $fullName);
-                $application->set("email", $email);
-                $application->set("agencyName", $agencyName);
-                $application->set("description", $description);
-                $application->set("contactPhone", $contactPhone);
-                $application->set("region", $region);
-                $application->set("status", "pending");
-                $application->save();
+                $agency = new ParseObject("Agency");
+                $agency->set("userId", $currUser->getObjectId());
+                $agency->set("fullName", $fullName);
+                $agency->set("email", $email);
+                $agency->set("agencyName", $agencyName);
+                $agency->set("description", $description);
+                $agency->set("contactPhone", $contactPhone);
+                $agency->set("region", $region);
+                $agency->set("status", "pending");
+                $agency->save();
                 $success = "Your agency application has been submitted successfully! Please wait for admin review.";
                 $applicationExists = true;
-                $userApplication = $application;
+                $userApplication = $agency;
             }
         } catch (ParseException $e) {
             $error = "Error: " . $e->getMessage();
@@ -214,10 +214,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 $status = $userApplication->get('status');
                                                 if ($status === 'pending') {
                                                     echo '<span class="badge badge-warning">Pending Review</span>';
-                                                } elseif ($status === 'approved') {
+                                                } elseif ($status === 'active' || $status === 'approved') {
                                                     echo '<span class="badge badge-success">Approved</span>';
                                                 } elseif ($status === 'rejected') {
                                                     echo '<span class="badge badge-danger">Rejected</span>';
+                                                } else {
+                                                    echo '<span class="badge badge-secondary">' . htmlspecialchars($status) . '</span>';
                                                 }
                                             ?>
                                         </p>

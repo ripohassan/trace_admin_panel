@@ -25,9 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $appId = isset($_POST['app_id']) ? trim($_POST['app_id']) : '';
         
         if (!empty($appId)) {
-            $query = new ParseQuery("AgencyApplication");
+            $query = new ParseQuery("Agency");
             $app = $query->get($appId, true);
-            $app->set("status", "approved");
+            $app->set("status", "active");
             $app->set("approvedAt", new DateTime());
             $app->set("approvedBy", $currUser->getObjectId());
             $app->save();
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $rejectReason = isset($_POST['reject_reason']) ? trim($_POST['reject_reason']) : '';
         
         if (!empty($appId)) {
-            $query = new ParseQuery("AgencyApplication");
+            $query = new ParseQuery("Agency");
             $app = $query->get($appId, true);
             $app->set("status", "rejected");
             $app->set("rejectionReason", $rejectReason);
@@ -149,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <tbody>
                                                     <?php
                                                     try {
-                                                        $query = new ParseQuery("AgencyApplication");
+                                                        $query = new ParseQuery("Agency");
                                                         $query->equalTo("status", "pending");
                                                         $query->descending('createdAt');
                                                         $query->limit(500);
@@ -218,8 +218,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <tbody>
                                                     <?php
                                                     try {
-                                                        $query = new ParseQuery("AgencyApplication");
-                                                        $query->equalTo("status", "approved");
+                                                        $query = new ParseQuery("Agency");
+                                                        $query->equalTo("status", "active");
                                                         $query->descending('approvedAt');
                                                         $query->limit(500);
                                                         $appArray = $query->find(true);
@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                                 <tbody>
                                                     <?php
                                                     try {
-                                                        $query = new ParseQuery("AgencyApplication");
+                                                        $query = new ParseQuery("Agency");
                                                         $query->equalTo("status", "rejected");
                                                         $query->descending('rejectedAt');
                                                         $query->limit(500);

@@ -44,10 +44,22 @@ $(function() {
         $(".floating-labels .form-control").on("focus blur", function(i) {
             $(this).parents(".form-group").toggleClass("focused", "focus" === i.type || this.value.length > 0);
         }).trigger("blur"), $(function() {
-            for (var i = window.location, o = $("ul#sidebarnav a").filter(function() {
-                    return this.href == i;
-                }).addClass("active").parent().addClass("active");;) {
-                if (!o.is("li")) break;
+            var currentUrl = window.location.href.split(/[?#]/)[0];
+            var currentPath = window.location.pathname;
+            var activeLinks = $("ul#sidebarnav a").filter(function() {
+                var href = this.href.split(/[?#]/)[0];
+                return href === currentUrl || href === currentPath || href === window.location.origin + currentPath;
+            }).addClass("active").parent().addClass("active");
+
+            activeLinks.each(function() {
+                var link = $(this);
+                if (link.is("li") && link.children("a.has-arrow").length) {
+                    link.children("a.has-arrow").attr("aria-expanded", true);
+                }
+            });
+
+            var o = activeLinks;
+            while (o.is("li")) {
                 o = o.parent().addClass("in").parent().addClass("active");
             }
         }),

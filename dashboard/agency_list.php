@@ -168,6 +168,7 @@ if (
                                                 <th style="color:#65131f;">Internal</th>
                                                 <th style="color:#65131f;">Agency ID</th>
                                                 <th style="color:#65131f;">Agency Name</th>
+                                                <th style="color:#65131f;">Status</th>
                                                 <th style="color:#65131f;">President ID</th>
                                                 <th style="color:#65131f;">External Admin User ID</th>
                                                 <th style="color:#65131f;">External Admin Nickname</th>
@@ -202,12 +203,22 @@ if (
                                                         $bdNickname = $agency->get('bdNickname') ?? '-';
                                                         $country = $agency->get('country') ?? '-';
                                                         $region = $agency->get('region');
+                                                        $statusValue = $agency->get('status') ?? 'active';
+                                                        $statusBadge = '<span class="badge badge-secondary">' . htmlspecialchars(ucfirst($statusValue)) . '</span>';
+                                                        if ($statusValue === 'pending') {
+                                                            $statusBadge = '<span class="badge badge-warning">Pending</span>';
+                                                        } elseif ($statusValue === 'active' || $statusValue === 'approved') {
+                                                            $statusBadge = '<span class="badge badge-success">Approved</span>';
+                                                        } elseif ($statusValue === 'rejected') {
+                                                            $statusBadge = '<span class="badge badge-danger">Rejected</span>';
+                                                        }
 
                                                         echo '
                                                         <tr>
                                                             <td>' . $counter . '</td>
                                                             <td>' . htmlspecialchars($agencyId) . '</td>
                                                             <td>' . htmlspecialchars($agencyName) . '</td>
+                                                            <td>' . $statusBadge . '</td>
                                                             <td>' . htmlspecialchars($presidentId) . '</td>
                                                             <td>' . htmlspecialchars($externalAdminUserId ?? 'N/A') . '</td>
                                                             <td>' . htmlspecialchars($externalAdminNickname ?? 'N/A') . '</td>
