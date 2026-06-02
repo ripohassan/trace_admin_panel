@@ -19,6 +19,53 @@ if (!$currUser) {
 $addError = '';
 $addSuccess = '';
 
+function updateUserRoleToAgency($userId, string &$errorMessage = '')
+{
+    global $parse_app_id, $parse_rest_key, $parse_master_key, $parse_server_url, $parse_mount_path;
+
+    if (empty($userId)) {
+        $errorMessage = 'Missing user ID.';
+        return false;
+    }
+
+    $baseUrl = rtrim($parse_server_url, '/');
+    $mountPath = trim($parse_mount_path, '/');
+    $url = $baseUrl . ($mountPath === '' ? '' : '/' . $mountPath) . '/classes/_User/' . rawurlencode($userId);
+
+    $payload = json_encode(['role' => 'agency']);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_CUSTOMREQUEST => 'PUT',
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'X-Parse-Application-Id: ' . $parse_app_id,
+            'X-Parse-REST-API-Key: ' . $parse_rest_key,
+            'X-Parse-Master-Key: ' . $parse_master_key,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_TIMEOUT => 30,
+    ]);
+
+    $responseBody = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($responseBody === false || $curlError) {
+        $errorMessage = 'User role update curl error: ' . $curlError;
+        return false;
+    }
+
+    if ($httpCode < 200 || $httpCode >= 300) {
+        $errorMessage = 'User role update failed with HTTP ' . $httpCode . ': ' . $responseBody;
+        return false;
+    }
+
+    return true;
+}
+
 // Handle Approve Application
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve') {
     try {
@@ -42,15 +89,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
 
             if (!empty($userId)) {
-                $userQuery = new ParseQuery("_User");
-                $user = $userQuery->get($userId, true);
-                if ($user) {
-                    $user->set("role", "agency");
-                    $user->save();
+                $userError = '';
+                if (!updateUserRoleToAgency($userId, $userError)) {
+                    $addError = 'Application approved, but user role update failed: ' . $userError;
+                } else {
+                    $addSuccess = "Application approved successfully! User role updated to 'agency'.";
                 }
+            } else {
+                $addError = 'Application approved, but user ID was missing so role update was skipped.';
             }
-            
-            $addSuccess = "Application approved successfully! User role updated to 'agency'.";
         }
     } catch (ParseException $e) {
         $addError = "Error: " . $e->getMessage();
