@@ -46,9 +46,15 @@ $(function() {
         }).trigger("blur"), $(function() {
             var currentUrl = window.location.href.split(/[?#]/)[0];
             var currentPath = window.location.pathname;
+            var currentFile = currentPath.substring(currentPath.lastIndexOf('/') + 1).toLowerCase();
             var activeLinks = $("ul#sidebarnav a").filter(function() {
                 var href = this.href.split(/[?#]/)[0];
-                return href === currentUrl || href === currentPath || href === window.location.origin + currentPath;
+                var hrefPath = this.pathname || href;
+                var hrefFile = hrefPath.substring(hrefPath.lastIndexOf('/') + 1).toLowerCase();
+                return href === currentUrl
+                    || href === currentPath
+                    || href === window.location.origin + currentPath
+                    || hrefFile === currentFile;
             }).addClass("active").parent().addClass("active");
 
             activeLinks.each(function() {

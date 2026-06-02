@@ -117,17 +117,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                             <?php endif; ?>
 
                             <div class="card-body">
-                                <ul class="nav nav-tabs" role="tablist">
-                                    <li class="nav-item">
-                                        <a class="nav-link active" data-toggle="tab" href="#pending" role="tab">Pending</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link" data-toggle="tab" href="#approved" role="tab">Approved</a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link" data-toggle="tab" href="#rejected" role="tab">Rejected</a>
-                                    </li>
-                                </ul>
 
                                 <div class="tab-content">
                                     <!-- Pending Applications -->
