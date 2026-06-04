@@ -119,59 +119,32 @@ if ($name != null){
 }
 
 // genero
-$genre= $currUser->get('gender');
+$genre = $currUser->get('gender');
+$genderMap = [
+    'MAL' => 'Male',
+    'FML' => 'Female',
+    'OTR' => 'Other',
+];
 
-if ($genre != null){
-
-    $genero = $genre;
-
-    if ($genero == "MAL"){
-
-        $gen1 = "Male";
-        $genT1 = "MAL";
-
-        $gen2 = "Female";
-        $genT2 = "FML";
-
-        $gen3 = "Other";
-        $genT3 = "OTR";
-        
-    } elseif ($genero == "FML"){
-
-        $gen1 = "Female";
-        $genT1 = "FML";
-
-        $gen2 = "Male";
-        $genT2 = "MAL";
-        
-        $gen3 = "Other";
-        $genT3 = "OTR";
-        
-    } elseif ($genero == "OTR"){
-
-        $gen3 = "Other";
-        $genT3 = "OTR";
-        
-        $gen1 = "Female";
-        $genT1 = "FML";
-
-        $gen2 = "Male";
-        $genT2 = "MAL";
-        
+$genero = null;
+if ($genre !== null) {
+    $genero = strtoupper(trim($genre));
+    if ($genero === 'MALE') {
+        $genero = 'MAL';
+    } elseif ($genero === 'FEMALE') {
+        $genero = 'FML';
+    } elseif ($genero === 'OTHER') {
+        $genero = 'OTR';
     }
-    
-} else {
+    if (!isset($genderMap[$genero])) {
+        $genero = null;
+    }
+}
 
-    $genero = "N/A";
-
-    $gen1 = "Male";
-    $genT1 = "MAL";
-
-    $gen2 = "Female";
-    $genT2 = "FML";
-    
-    $gen3 = "Other";
-    $genT3 = "OTR";
+$genderOptionsHtml = '<option value=""'.($genero === null ? ' selected' : '').'>Select gender</option>';
+foreach ($genderMap as $code => $label) {
+    $selected = ($code === $genero) ? ' selected' : '';
+    $genderOptionsHtml .= '<option value="'.$code.'"'.$selected.'>'.$label.'</option>';
 }
 
 // Data de nascimento
@@ -336,9 +309,7 @@ $_SESSION['suspension_status'] = $accountStatusDisabled;
                                 <label class="col-lg-4 col-form-label" for="gender">Gender <span class="text-danger">*</span></label>
                                 <div class="col-sm-8">
                                     <select class="form-control" id="gender" name="gender">
-                                        <option value="'.$genT1.'">'.$gen1.'</option>
-                                        <option value="'.$genT2.'">'.$gen2.'</option>
-                                        <option value="'.$genT3.'">'.$gen3.'</option>
+                                        '.$genderOptionsHtml.'
                                     </select>
                                 </div>
                             </div>
