@@ -149,6 +149,14 @@ $sidebarIsSuperAdmin = $sidebarCurrUser ? (($sidebarCurrUser->get('isSuperAdmin'
     
 
                 <li>
+                    <a class="has-arrow  " href="javascript:void(0)" aria-expanded="false"><i class="fa fa-gamepad"></i><span class="hide-menu">Games</span></a>
+                    <ul aria-expanded="false" class="collapse">
+                        <li><a href="../dashboard/games.php">All Games</a></li>
+                        <li><a href="../dashboard/add_game.php">Add new Game</a></li>
+                    </ul>
+                </li>
+
+                <li>
                     <a class="has-arrow  " href="javascript:void(0)" aria-expanded="false"><i class="fa fa-diamond"></i><span class="hide-menu">Coin System</span></a>
                     <ul aria-expanded="false" class="collapse">
                         <?php if ($sidebarRole !== 'admin') { ?>
