@@ -112,7 +112,7 @@ $B4A_BASE       = 'https://parseapi.back4app.com';
 try {
 
     // try-1: uid = "10001"  (String)
-    $result = b4aQuery($B4A_BASE . '/classes/Game?limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+    $result = b4aQuery($B4A_BASE . '/classes/Game', $B4A_APP_ID, $B4A_MASTER_KEY);
     $games = $result['results'] ?? [];
     
     $gamesList = [];
