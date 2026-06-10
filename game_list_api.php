@@ -126,13 +126,13 @@ try {
         ];
         
         // Add optional URL fields if they exist
-        if ($game['full_url']) {
+        if (isset($game['full_url'])) {
             $gameData['full_url'] = (string)$game['full_url'];
         }
-        if ($game['hd_url']) {
+        if (isset($game['hd_url'])) {
             $gameData['hd_url'] = (string)$game['hd_url'];
         }
-        if ($game['half_url']) {
+        if (isset($game['half_url'])) {
             $gameData['half_url'] = (string)$game['half_url'];
         }
         
