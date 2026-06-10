@@ -117,19 +117,39 @@ function back4appGet(string $endpoint, string $appId, string $masterKey): ?array
 
 $foundUser = null;
 
-// 1. uid field দিয়ে খোঁজা (custom field)
-$encoded  = urlencode(json_encode(['uid' => $uid]));
-$url      = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
-$result   = back4appGet($url, $appId, $masterKey);
+// 1a. uid field দিয়ে খোঁজা — String হিসেবে
+$encoded = urlencode(json_encode(['uid' => $uid]));
+$url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
+$result  = back4appGet($url, $appId, $masterKey);
 if (!empty($result['results'])) {
     $foundUser = $result['results'][0];
 }
 
-// 2. userId field দিয়ে খোঁজা (অনেক app-এ userId নামে থাকে)
-if ($foundUser == null) {
-    $encoded  = urlencode(json_encode(['userId' => $uid]));
-    $url      = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
-    $result   = back4appGet($url, $appId, $masterKey);
+// 1b. uid field — Number/Integer হিসেবে (Back4App-এ Number type হলে string match হয় না)
+if ($foundUser === null && is_numeric($uid)) {
+    $encoded = urlencode(json_encode(['uid' => (int)$uid]));
+    $url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
+    $result  = back4appGet($url, $appId, $masterKey);
+    if (!empty($result['results'])) {
+        $foundUser = $result['results'][0];
+    }
+}
+
+// 1c. uid field — Float হিসেবে (কখনো কখনো Number type float হয়)
+if ($foundUser === null && is_numeric($uid)) {
+    $encoded = urlencode(json_encode(['uid' => (float)$uid]));
+    $url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
+    $result  = back4appGet($url, $appId, $masterKey);
+    if (!empty($result['results'])) {
+        $foundUser = $result['results'][0];
+    }
+}
+
+// 2. userId field দিয়ে খোঁজা
+if ($foundUser === null) {
+    $encoded = urlencode(json_encode(['userId' => $uid]));
+    $url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
+    $result  = back4appGet($url, $appId, $masterKey);
     if (!empty($result['results'])) {
         $foundUser = $result['results'][0];
     }
