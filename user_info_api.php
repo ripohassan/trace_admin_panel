@@ -5,41 +5,39 @@
  * Request Body (JSON):
  * {
  *   "gameId": "101",
- *   "uid": "10001",
- *   "token": "ABCD123",
+ *   "uid":    "10001",
+ *   "token":  "ABCD123",
  *   "roomId": "100000",   // optional
- *   "sign": "md5(gameId + uid + token + roomId + key)"
+ *   "sign":   "md5(gameId + uid + token + roomId + secretKey)"
  * }
  *
- * Response:
+ * Response (success):
  * {
  *   "errorCode": 0,
  *   "data": {
- *     "uid": "10001",
+ *     "uid":      "10001",
  *     "nickname": "lucky",
- *     "avatar": "https://leadercc.com/avatar.png",
- *     "coin": 10000
+ *     "avatar":   "https://example.com/avatar.png",
+ *     "coin":     10000
  *   }
  * }
  */
 
-// Disable SSL verification for development BEFORE loading Parse SDK
-// This must be done before require/include to take effect
+header('Content-Type: application/json');
+
+// SSL bypass (development)
 stream_context_set_default([
     'ssl' => [
-        'verify_peer' => false,
+        'verify_peer'      => false,
         'verify_peer_name' => false,
         'allow_self_signed' => true,
-    ]
+    ],
 ]);
 
 require 'vendor/autoload.php';
 include 'Configs.php';
 
-use Parse\ParseException;
-use Parse\ParseQuery;
-
-header('Content-Type: application/json');
+// ── 1. Request parse ─────────────────────────────────────────────────────
 
 $rawBody = file_get_contents('php://input');
 if (!$rawBody) {
@@ -56,21 +54,25 @@ if (!is_array($data)) {
 }
 
 $gameId = trim((string)($data['gameId'] ?? ''));
-$uid = trim((string)($data['uid'] ?? ''));
-$token = trim((string)($data['token'] ?? ''));
+$uid    = trim((string)($data['uid']    ?? ''));
+$token  = trim((string)($data['token']  ?? ''));
 $roomId = trim((string)($data['roomId'] ?? ''));
-$sign = trim((string)($data['sign'] ?? ''));
+$sign   = trim((string)($data['sign']   ?? ''));
+
+// ── 2. Required field check ──────────────────────────────────────────────
+
+if ($gameId === '' || $uid === '' || $token === '' || $sign === '') {
+    http_response_code(400);
+    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Parameter error: gameId, uid, token, sign are required']);
+    exit;
+}
+
+// ── 3. Signature verify ──────────────────────────────────────────────────
 
 $secretKey = $_ENV['API_SIGN_KEY'] ?? $_ENV['WEBHOOK_KEY'] ?? $_ENV['REST_API_KEY'] ?? '';
 if ($secretKey === '') {
     http_response_code(500);
-    echo json_encode(['errorCode' => 4000, 'errorMessage' => 'Server error: signature key not configured']);
-    exit;
-}
-
-if ($gameId === '' || $uid === '' || $token === '' || $sign === '') {
-    http_response_code(400);
-    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Parameter error: Missing required fields']);
+    echo json_encode(['errorCode' => 4000, 'errorMessage' => 'Server error: secret key not configured']);
     exit;
 }
 
@@ -81,19 +83,17 @@ if (strtolower($sign) !== strtolower($expectedSign)) {
     exit;
 }
 
-// ── Back4App REST API diye user search ──────────────────────────────────
-$appId      = $parse_app_id;
-$masterKey  = $parse_master_key;
-$serverUrl  = 'https://parseapi.back4app.com';
+// ── 4. Back4App REST API helper ──────────────────────────────────────────
 
 /**
- * Back4App REST API call helper
+ * Back4App REST API GET request.
+ * Master Key ব্যবহার করায় ACL বাধা নেই।
  */
-function back4appGet(string $endpoint, string $appId, string $masterKey): ?array
+function b4aQuery(string $url, string $appId, string $masterKey): ?array
 {
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL            => $endpoint,
+        CURLOPT_URL            => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 15,
         CURLOPT_SSL_VERIFYPEER => false,
@@ -104,118 +104,86 @@ function back4appGet(string $endpoint, string $appId, string $masterKey): ?array
             'Content-Type: application/json',
         ],
     ]);
-    $response = curl_exec($ch);
+    $body     = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($response === false || $httpCode >= 400) {
+    if ($body === false || $httpCode < 200 || $httpCode >= 300) {
         return null;
     }
-    $decoded = json_decode($response, true);
+    $decoded = json_decode($body, true);
     return is_array($decoded) ? $decoded : null;
 }
 
+// ── 5. Back4App _User table এ uid দিয়ে user খোঁজা ──────────────────────
+
+$B4A_APP_ID     = $parse_app_id;
+$B4A_MASTER_KEY = $parse_master_key;
+$B4A_BASE       = 'https://parseapi.back4app.com';
+
 $foundUser = null;
 
-// 1a. uid field দিয়ে খোঁজা — String হিসেবে
-$encoded = urlencode(json_encode(['uid' => $uid]));
-$url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
-$result  = back4appGet($url, $appId, $masterKey);
+/*
+ * Back4App-এ uid column String হতে পারে অথবা Number (Integer)।
+ * দুইটাই try করা হচ্ছে — একটায় match হলেই user পাওয়া যাবে।
+ */
+
+// try-1: uid = "10001"  (String)
+$where  = urlencode(json_encode(['uid' => $uid]));
+$result = b4aQuery($B4A_BASE . '/1/users?where=' . $where . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
 if (!empty($result['results'])) {
     $foundUser = $result['results'][0];
 }
 
-// 1b. uid field — Number/Integer হিসেবে (Back4App-এ Number type হলে string match হয় না)
+// try-2: uid = 10001  (Integer/Number)
 if ($foundUser === null && is_numeric($uid)) {
-    $encoded = urlencode(json_encode(['uid' => (int)$uid]));
-    $url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
-    $result  = back4appGet($url, $appId, $masterKey);
+    $where  = urlencode(json_encode(['uid' => (int)$uid]));
+    $result = b4aQuery($B4A_BASE . '/1/users?where=' . $where . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
     if (!empty($result['results'])) {
         $foundUser = $result['results'][0];
     }
 }
 
-// 1c. uid field — Float হিসেবে (কখনো কখনো Number type float হয়)
-if ($foundUser === null && is_numeric($uid)) {
-    $encoded = urlencode(json_encode(['uid' => (float)$uid]));
-    $url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
-    $result  = back4appGet($url, $appId, $masterKey);
-    if (!empty($result['results'])) {
-        $foundUser = $result['results'][0];
-    }
-}
+// ── 6. User না পেলে error ────────────────────────────────────────────────
 
-// 2. userId field দিয়ে খোঁজা
 if ($foundUser === null) {
-    $encoded = urlencode(json_encode(['userId' => $uid]));
-    $url     = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
-    $result  = back4appGet($url, $appId, $masterKey);
-    if (!empty($result['results'])) {
-        $foundUser = $result['results'][0];
-    }
-}
-
-// 3. objectId দিয়ে সরাসরি খোঁজা
-if ($foundUser == null) {
-    $url    = $serverUrl . '/1/users/' . urlencode($uid);
-    $result = back4appGet($url, $appId, $masterKey);
-    if (!empty($result['objectId'])) {
-        $foundUser = $result;
-    }
-}
-
-// 4. username দিয়ে খোঁজা
-if ($foundUser == null) {
-    $encoded  = urlencode(json_encode(['username' => $uid]));
-    $url      = $serverUrl . '/1/users?where=' . $encoded . '&limit=1';
-    $result   = back4appGet($url, $appId, $masterKey);
-    if (!empty($result['results'])) {
-        $foundUser = $result['results'][0];
-    }
-}
-
-if ($foundUser == null) {
-    echo json_encode([
-        'errorCode'    => 4005,
-        'errorMessage' => 'User not found',
-        'debug'        => 'Searched uid, userId, objectId, username fields in _User',
-    ]);
+    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'User not found']);
     exit;
 }
 
-// ── Response তৈরি করা ─────────────────────────────────────────────────
+// ── 7. User পেলে details তৈরি করে return করা ───────────────────────────
+
+// Nickname: name → nickname → displayName → username
 $nickname = $foundUser['name']
     ?? $foundUser['nickname']
     ?? $foundUser['displayName']
     ?? $foundUser['username']
     ?? '';
 
-// Avatar URL বের করা (ParseFile object বা plain string দুটোই handle)
+// Avatar: ParseFile object {url:...} অথবা plain string URL
 $avatarUrl = '';
-if (!empty($foundUser['avatar'])) {
-    $av = $foundUser['avatar'];
-    if (is_array($av) && !empty($av['url'])) {
-        $avatarUrl = $av['url'];
-    } elseif (is_string($av)) {
-        $avatarUrl = $av;
-    }
-}
-if (!empty($foundUser['profileImage'])) {
-    $av = $foundUser['profileImage'];
-    if (is_array($av) && !empty($av['url'])) {
-        $avatarUrl = $av['url'];
-    } elseif (is_string($av)) {
-        $avatarUrl = $av;
+foreach (['avatar', 'profileImage', 'profilePicture', 'photo'] as $avatarKey) {
+    if (!empty($foundUser[$avatarKey])) {
+        $av = $foundUser[$avatarKey];
+        if (is_array($av) && !empty($av['url'])) {
+            $avatarUrl = $av['url'];
+        } elseif (is_string($av)) {
+            $avatarUrl = $av;
+        }
+        if ($avatarUrl !== '') break;
     }
 }
 
-// http → https
+// http → https force
 if ($avatarUrl !== '' && stripos($avatarUrl, 'http://') === 0) {
     $avatarUrl = 'https://' . substr($avatarUrl, 7);
 }
 
+// Coin balance: coins → coin → balance → 0
 $coinBalance = $foundUser['coins'] ?? $foundUser['coin'] ?? $foundUser['balance'] ?? 0;
 $coinBalance = is_numeric($coinBalance) ? (int)$coinBalance : 0;
+
+// ── 8. Response ──────────────────────────────────────────────────────────
 
 echo json_encode([
     'errorCode' => 0,
