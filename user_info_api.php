@@ -105,14 +105,10 @@ function b4aQuery(string $url, string $appId, string $masterKey): ?array
         ],
     ]);
     $body     = curl_exec($ch);
-    if(curl_errno($ch)){
-        die(curl_error($ch));
-    }
+
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-echo "HTTP CODE: " . $httpCode . "<br>";
-echo "RESPONSE: " . $body;
-die;
+
     if ($body === false || $httpCode < 200 || $httpCode >= 300) {
         return null;
     }
