@@ -136,9 +136,7 @@ $foundUser = null;
 // try-1: uid = "10001"  (String)
 $where  = urlencode(json_encode(['uid' => (int)$uid]));
 $result = b4aQuery($B4A_BASE . '/classes/_User?where=' . $where . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
-print_r($result);
-print_r(555);
-die;
+
 if (!empty($result['results'])) {
     $foundUser = $result['results'][0];
 }
