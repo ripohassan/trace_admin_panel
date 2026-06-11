@@ -6,13 +6,15 @@
  * mechanism in the game currency update flow. The APP service calls this
  * endpoint to manually trigger additional coin crediting for a specific order.
  *
- * Key differences from supplement_game_coin_api (polling):
- *  - Includes `type` and `token` fields (same signature formula as update_game_coin_api)
+ * Key differences from update_game_coin_api:
+ *  - No `type` field — coins are always added (obtain)
+ *  - No `token` field
  *  - Intended for targeted, on-demand order recovery — not periodic polling
  *  - Logged to a separate `OrderSupplement` class for auditing
+ *  - Deduplication checks both GameTransaction AND OrderSupplement
  *
  * Sign formula:
- *   md5(orderId + gameId + roundId + uid + coin + type + rewardType + token + winId + key)
+ *   md5(orderId + gameId + roundId + uid + coin + rewardType + winId + key)
  *
  * Request Body (JSON):
  * {
@@ -21,9 +23,7 @@
  *   "roundId":    "abcdeee123",
  *   "uid":        "10001",
  *   "coin":       100,
- *   "type":       2,
  *   "rewardType": 2,
- *   "token":      "ABCD123",
  *   "winId":      "",
  *   "roomid":     "100000",
  *   "sign":       "md5_hash"
@@ -48,7 +48,6 @@
  *   4005  - Parameter error (missing required fields)
  *   10004 - Signature error
  *   4000  - Network timeout / server error
- *   4004  - Insufficient game coins (type=1 consume only)
  */
 
 header('Content-Type: application/json');
@@ -70,14 +69,23 @@ include 'Configs.php';
 $rawBody = file_get_contents('php://input');
 if (!$rawBody) {
     http_response_code(400);
-    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Empty request body']);
+    echo json_encode([
+        'errorCode'    => 4005,
+        'errorMessage' => 'Empty request body',
+        'hint'         => 'Set Content-Type: application/json and send a raw JSON body',
+    ]);
     exit;
 }
 
 $data = json_decode($rawBody, true);
 if (!is_array($data)) {
     http_response_code(400);
-    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Invalid JSON body']);
+    echo json_encode([
+        'errorCode'    => 4005,
+        'errorMessage' => 'Invalid JSON body',
+        'jsonError'    => json_last_error_msg(),
+        'hint'         => 'Ensure all values are quoted strings/numbers, no trailing commas, and Content-Type is application/json',
+    ]);
     exit;
 }
 
@@ -88,25 +96,17 @@ $gameId     = trim((string) ($data['gameId']     ?? ''));
 $roundId    = trim((string) ($data['roundId']    ?? ''));
 $uid        = trim((string) ($data['uid']        ?? ''));
 $coin       = (int)         ($data['coin']       ?? 0);
-$type       = (int)         ($data['type']       ?? 0);
 $rewardType = (int)         ($data['rewardType'] ?? 0);
-$token      = trim((string) ($data['token']      ?? ''));
 $winId      = trim((string) ($data['winId']      ?? ''));
 $roomid     = trim((string) ($data['roomid']     ?? ''));
 $sign       = trim((string) ($data['sign']       ?? ''));
 
-// Validate required fields (orderId, gameId, roundId, uid, coin, type, rewardType, token, sign)
+// Validate required fields (orderId, gameId, roundId, uid, coin, rewardType, sign)
+// Note: type and token are NOT required — coins are always added (obtain)
 if ($orderId === '' || $gameId === '' || $roundId === '' || $uid === '' ||
-    $coin === 0 || $type === 0 || $rewardType === 0 || $token === '' || $sign === '') {
+    $coin === 0 || $rewardType === 0 || $sign === '') {
     http_response_code(400);
     echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Parameter error: Missing required fields']);
-    exit;
-}
-
-// Validate type value (1 = consume, 2 = obtain)
-if ($type !== 1 && $type !== 2) {
-    http_response_code(400);
-    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Parameter error: type must be 1 (consume) or 2 (obtain)']);
     exit;
 }
 
@@ -127,8 +127,8 @@ if ($secretKey === '') {
     exit;
 }
 
-// Sign = md5(orderId + gameId + roundId + uid + coin + type + rewardType + token + winId + key)
-$expectedSign = md5($orderId . $gameId . $roundId . $uid . $coin . $type . $rewardType . $token . $winId . $secretKey);
+// Sign = md5(orderId + gameId + roundId + uid + coin + rewardType + winId + key)
+$expectedSign = md5($orderId . $gameId . $roundId . $uid . $coin . $rewardType . $winId . $secretKey);
 if (strtolower($sign) !== strtolower($expectedSign)) {
     http_response_code(401);
     echo json_encode(['errorCode' => 10004, 'errorMessage' => 'Signature error']);
@@ -292,22 +292,9 @@ if (!empty($supResult['results'])) {
     exit;
 }
 
-// ── 7. Calculate new coin balance ────────────────────────────────────────
+// ── 7. Calculate new coin balance (always add — no type field) ──────────
 
-$newCoin = $currentCoin;
-
-if ($type === 1) {
-    // Type 1: Consume coins
-    $newCoin = $currentCoin - $coin;
-    if ($newCoin < 0) {
-        http_response_code(400);
-        echo json_encode(['errorCode' => 4004, 'errorMessage' => 'Insufficient game coins']);
-        exit;
-    }
-} elseif ($type === 2) {
-    // Type 2: Obtain / credit coins
-    $newCoin = $currentCoin + $coin;
-}
+$newCoin = $currentCoin + $coin;
 
 // ── 8. Update user coins via REST API ────────────────────────────────────
 
@@ -332,9 +319,8 @@ $supplementLog = [
     'gameId'     => $gameId,
     'roundId'    => $roundId,
     'coin'       => $coin,
-    'type'       => $type,
+    'type'       => 2, // Always obtain/add (no type field in this API)
     'rewardType' => $rewardType,
-    'token'      => $token,
     'winId'      => $winId,
     'roomid'     => $roomid,
     'oldCoin'    => $currentCoin,

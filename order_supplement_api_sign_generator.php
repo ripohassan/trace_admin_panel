@@ -3,7 +3,9 @@
  * Order Supplement API - Signature Generator (For Testing Only)
  *
  * Generates the correct MD5 signature for order_supplement_api.php requests.
- * Sign formula: md5(orderId + gameId + roundId + uid + coin + type + rewardType + token + winId + key)
+ * Sign formula: md5(orderId + gameId + roundId + uid + coin + rewardType + winId + key)
+ *
+ * Note: No `type` or `token` fields — coins are always added (obtain).
  *
  * Usage (GET):
  *   order_supplement_api_sign_generator.php
@@ -12,9 +14,7 @@
  *     &roundId=abcdeee123
  *     &uid=10001
  *     &coin=100
- *     &type=2
  *     &rewardType=2
- *     &token=ABCD123
  *     &winId=
  *     &roomid=100000
  */
@@ -30,31 +30,26 @@ try {
     $roundId    = trim((string) ($_GET['roundId']    ?? ''));
     $uid        = trim((string) ($_GET['uid']        ?? ''));
     $coin       = trim((string) ($_GET['coin']       ?? ''));
-    $type       = trim((string) ($_GET['type']       ?? ''));
     $rewardType = trim((string) ($_GET['rewardType'] ?? ''));
-    $token      = trim((string) ($_GET['token']      ?? ''));
     $winId      = trim((string) ($_GET['winId']      ?? ''));
     $roomid     = trim((string) ($_GET['roomid']     ?? ''));
 
     // Validate required fields
     if ($orderId === '' || $gameId === '' || $roundId === '' || $uid === '' ||
-        $coin === '' || $type === '' || $rewardType === '' || $token === '') {
+        $coin === '' || $rewardType === '') {
         http_response_code(400);
         echo json_encode([
             'errorCode'    => 4005,
             'errorMessage' => 'Parameter error: Missing required fields',
-            'required'     => ['orderId', 'gameId', 'roundId', 'uid', 'coin', 'type', 'rewardType', 'token'],
+            'required'     => ['orderId', 'gameId', 'roundId', 'uid', 'coin', 'rewardType'],
             'optional'     => ['winId', 'roomid'],
+            'note'         => 'No type or token fields needed — coins are always added',
             'rewardTypes'  => [
                 2 => 'normal',
                 3 => 'piggy bank rewards',
                 4 => 'daily leaderboard rewards',
                 5 => 'weekly leaderboard rewards',
                 6 => 'novice task rewards',
-            ],
-            'typeValues'   => [
-                1 => 'consume coins',
-                2 => 'obtain / credit coins',
             ],
         ]);
         exit;
@@ -68,8 +63,8 @@ try {
         exit;
     }
 
-    // Generate signature: md5(orderId + gameId + roundId + uid + coin + type + rewardType + token + winId + key)
-    $sign = md5($orderId . $gameId . $roundId . $uid . $coin . $type . $rewardType . $token . $winId . $secretKey);
+    // Generate signature: md5(orderId + gameId + roundId + uid + coin + rewardType + winId + key)
+    $sign = md5($orderId . $gameId . $roundId . $uid . $coin . $rewardType . $winId . $secretKey);
 
     // Build ready-to-paste Postman body
     $postmanBody = [
@@ -78,9 +73,7 @@ try {
         'roundId'    => $roundId,
         'uid'        => $uid,
         'coin'       => (int) $coin,
-        'type'       => (int) $type,
         'rewardType' => (int) $rewardType,
-        'token'      => $token,
         'winId'      => $winId,
         'sign'       => $sign,
     ];
@@ -92,7 +85,7 @@ try {
     http_response_code(200);
     echo json_encode([
         'sign'         => $sign,
-        'sign_formula' => 'md5(orderId + gameId + roundId + uid + coin + type + rewardType + token + winId + key)',
+        'sign_formula' => 'md5(orderId + gameId + roundId + uid + coin + rewardType + winId + key)',
         'endpoint'     => 'order_supplement_api.php',
         'method'       => 'POST',
         'postman_body' => json_encode($postmanBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
