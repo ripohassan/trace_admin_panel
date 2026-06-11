@@ -85,6 +85,7 @@ try {
         );
         ParseClient::setServerURL($parse_server_url, $parse_mount_path);
         ParseClient::setStorage(new ParseSessionStorage());
+        ParseClient::setHttpClient(new \Parse\HttpClients\ParseStreamHttpClient());
     } else {
         error_log('Missing Parse configuration. Please set PARSE_APP_ID/PARSE_REST_API_KEY/PARSE_MASTER_KEY in .env');
     }

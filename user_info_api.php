@@ -116,11 +116,49 @@ function b4aQuery(string $url, string $appId, string $masterKey): ?array
     return is_array($decoded) ? $decoded : null;
 }
 
-// ── 5. Back4App _User table এ uid দিয়ে user খোঁজা ──────────────────────
+// ── 4.1. Token Verification with 1-Minute Grace Period ────────────────────
+$tokenValid = false;
+$tokenError = 'Invalid session token';
+$tokenUid = null;
 
 $B4A_APP_ID     = $parse_app_id;
 $B4A_MASTER_KEY = $parse_master_key;
 $B4A_BASE       = 'https://parseapi.back4app.com';
+
+try {
+    $validatedUser = ParseUser::become($token);
+    if ($validatedUser) {
+        $tokenValid = true;
+        $tokenUid = (string)($validatedUser->get('uid') ?? $validatedUser->getObjectId());
+    }
+} catch (ParseException $e) {
+    // Check if token was recently invalidated (within last 60 seconds)
+    $whereParam = urlencode(json_encode(['token' => $token]));
+    $graceResult = b4aQuery($B4A_BASE . '/classes/InvalidatedSession?where=' . $whereParam . '&limit=1&order=-createdAt', $B4A_APP_ID, $B4A_MASTER_KEY);
+    
+    if (!empty($graceResult['results'])) {
+        $graceRecord = $graceResult['results'][0];
+        $invalidatedAtStr = $graceRecord['invalidatedAt']['iso'] ?? $graceRecord['createdAt'] ?? '';
+        if ($invalidatedAtStr) {
+            $invalidatedTime = strtotime($invalidatedAtStr);
+            $currentTime = time();
+            if (($currentTime - $invalidatedTime) <= 60 && ($currentTime - $invalidatedTime) >= 0) {
+                $tokenValid = true;
+                $tokenUid = (string)($graceRecord['uid'] ?? '');
+            } else {
+                $tokenError = 'Session token expired (grace period exceeded)';
+            }
+        }
+    }
+}
+
+if (!$tokenValid) {
+    http_response_code(401);
+    echo json_encode(['errorCode' => 4006, 'errorMessage' => $tokenError]);
+    exit;
+}
+
+// ── 5. Back4App _User table এ uid দিয়ে user খোঁজা ──────────────────────
 
 $foundUser = null;
 
@@ -152,6 +190,17 @@ if ($foundUser === null) {
     echo json_encode(['errorCode' => 4005, 'errorMessage' => 'User not found']);
     exit;
 }
+
+// Verify token owner matches the requested user
+$foundUserUid = (string)($foundUser['uid'] ?? '');
+$foundUserObjectId = (string)($foundUser['objectId'] ?? '');
+
+if ($tokenUid !== null && $tokenUid !== '' && $tokenUid !== $foundUserUid && $tokenUid !== $foundUserObjectId) {
+    http_response_code(403);
+    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Token does not match the requested user']);
+    exit;
+}
+
 
 // ── 7. User পেলে details তৈরি করে return করা ───────────────────────────
 

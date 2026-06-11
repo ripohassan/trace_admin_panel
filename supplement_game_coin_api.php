@@ -1,8 +1,8 @@
 <?php
 /**
- * Update Game Coin API
+ * Supplementary Polling API
  *
- * Update user's game coins in real-time during gameplay
+ * Adds game coins to user account for game replenishment polling.
  *
  * Request Body (JSON):
  * {
@@ -11,9 +11,7 @@
  *   "roundId": "abcdeee123",
  *   "uid": "10001",
  *   "coin": 100,
- *   "type": 1,
  *   "rewardType": 2,
- *   "token": "ABCD123",
  *   "winId": "",
  *   "roomid": "100000",
  *   "sign": "md5_hash"
@@ -26,12 +24,6 @@
  *     "coin": 9999
  *   }
  * }
- *
- * Error Codes:
- * 4005 - Parameter error (missing required fields)
- * 10004 - Signature error
- * 4000 - Network timeout / server error
- * 4004 - Insufficient game coins
  */
 
 // Disable SSL verification for development
@@ -73,16 +65,14 @@ try {
     $roundId = trim((string)($data['roundId'] ?? ''));
     $uid = trim((string)($data['uid'] ?? ''));
     $coin = (int)($data['coin'] ?? 0);
-    $type = (int)($data['type'] ?? 0);
     $rewardType = (int)($data['rewardType'] ?? 0);
-    $token = trim((string)($data['token'] ?? ''));
     $winId = trim((string)($data['winId'] ?? ''));
     $roomid = trim((string)($data['roomid'] ?? ''));
     $sign = trim((string)($data['sign'] ?? ''));
 
     // Check required fields
     if ($orderId === '' || $gameId === '' || $roundId === '' || $uid === '' || 
-        $coin === 0 || $type === 0 || $rewardType === 0 || $token === '' || $sign === '') {
+        $coin === 0 || $rewardType === 0 || $sign === '') {
         http_response_code(400);
         echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Parameter error: Missing required fields']);
         exit;
@@ -97,54 +87,10 @@ try {
     }
 
     // Verify signature
-    $expectedSign = md5($orderId . $gameId . $roundId . $uid . $coin . $type . $rewardType . $token . $winId . $secretKey);
+    $expectedSign = md5($orderId . $gameId . $roundId . $uid . $coin . $rewardType . $winId . $secretKey);
     if (strtolower($sign) !== strtolower($expectedSign)) {
         http_response_code(401);
         echo json_encode(['errorCode' => 10004, 'errorMessage' => 'Signature error']);
-        exit;
-    }
-
-    // ── Token Verification with 1-Minute Grace Period ───────────────────
-    $tokenValid = false;
-    $tokenError = 'Invalid session token';
-    $tokenUid = null;
-
-    try {
-        $validatedUser = ParseUser::become($token);
-        if ($validatedUser) {
-            $tokenValid = true;
-            $tokenUid = (string)($validatedUser->get('uid') ?? $validatedUser->getObjectId());
-        }
-    } catch (ParseException $e) {
-        // Check if token was recently invalidated (within last 60 seconds)
-        try {
-            $graceQuery = new ParseQuery('InvalidatedSession');
-            $graceQuery->equalTo('token', $token);
-            $graceQuery->descending('createdAt');
-            $graceRecord = $graceQuery->first();
-            
-            if ($graceRecord) {
-                // Get invalidatedAt or fallback to createdAt
-                $invalidatedAt = $graceRecord->get('invalidatedAt') ?? $graceRecord->getCreatedAt();
-                if ($invalidatedAt) {
-                    $invalidatedTime = $invalidatedAt->getTimestamp();
-                    $currentTime = time();
-                    if (($currentTime - $invalidatedTime) <= 60 && ($currentTime - $invalidatedTime) >= 0) {
-                        $tokenValid = true;
-                        $tokenUid = (string)($graceRecord->get('uid') ?? '');
-                    } else {
-                        $tokenError = 'Session token expired (grace period exceeded)';
-                    }
-                }
-            }
-        } catch (Exception $ex) {
-            // Ignore query exceptions
-        }
-    }
-
-    if (!$tokenValid) {
-        http_response_code(401);
-        echo json_encode(['errorCode' => 4006, 'errorMessage' => $tokenError]);
         exit;
     }
 
@@ -165,17 +111,6 @@ try {
         }
     }
 
-    // Verify token owner matches the requested user
-    $foundUserUid = (string)($user->get('uid') ?? '');
-    $foundUserObjectId = (string)($user->getObjectId() ?? '');
-
-    if ($tokenUid !== null && $tokenUid !== '' && $tokenUid !== $foundUserUid && $tokenUid !== $foundUserObjectId) {
-        http_response_code(403);
-        echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Token does not match the requested user']);
-        exit;
-    }
-
-
     // Check for duplicate orderId (deduplication)
     $transactionQuery = new ParseQuery('GameTransaction');
     $transactionQuery->equalTo('orderId', $orderId);
@@ -195,20 +130,8 @@ try {
     // Get current coin balance
     $currentCoin = (int)($user->get('coins') ?? 0);
 
-    // Calculate new coin balance based on type
-    $newCoin = $currentCoin;
-    if ($type === 1) {
-        // Type 1: Consume coins
-        $newCoin = $currentCoin - $coin;
-        if ($newCoin < 0) {
-            http_response_code(400);
-            echo json_encode(['errorCode' => 4004, 'errorMessage' => 'Insufficient game coins']);
-            exit;
-        }
-    } elseif ($type === 2) {
-        // Type 2: Obtain coins
-        $newCoin = $currentCoin + $coin;
-    }
+    // Calculate new coin balance (always obtaining/replenishing)
+    $newCoin = $currentCoin + $coin;
 
     // Update user coins
     $user->set('coins', $newCoin);
@@ -221,7 +144,7 @@ try {
     $transaction->set('gameId', $gameId);
     $transaction->set('roundId', $roundId);
     $transaction->set('coin', $coin);
-    $transaction->set('type', $type);
+    $transaction->set('type', 2); // Type 2: Obtain/Add
     $transaction->set('rewardType', $rewardType);
     $transaction->set('winId', $winId);
     $transaction->set('roomid', $roomid);

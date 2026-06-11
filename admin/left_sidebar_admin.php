@@ -153,8 +153,10 @@ $sidebarIsSuperAdmin = $sidebarCurrUser ? (($sidebarCurrUser->get('isSuperAdmin'
                     <ul aria-expanded="false" class="collapse">
                         <li><a href="../dashboard/games.php">All Games</a></li>
                         <li><a href="../dashboard/add_game.php">Add new Game</a></li>
+                        <li><a href="../dashboard/game_transactions.php"><i class="fa fa-coins"></i> Game Coin Transactions</a></li>
                     </ul>
                 </li>
+
 
                 <li>
                     <a class="has-arrow  " href="javascript:void(0)" aria-expanded="false"><i class="fa fa-diamond"></i><span class="hide-menu">Coin System</span></a>
