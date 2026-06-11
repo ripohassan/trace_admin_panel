@@ -28,7 +28,7 @@ header('Content-Type: application/json');
 // SSL bypass (development)
 stream_context_set_default([
     'ssl' => [
-        'verify_peer'      => false,
+        'verify_peer' => false,
         'verify_peer_name' => false,
         'allow_self_signed' => true,
     ],
@@ -53,11 +53,11 @@ if (!is_array($data)) {
     exit;
 }
 
-$gameId = trim((string)($data['gameId'] ?? ''));
-$uid    = trim((string)($data['uid']    ?? ''));
-$token  = trim((string)($data['token']  ?? ''));
-$roomId = trim((string)($data['roomId'] ?? ''));
-$sign   = trim((string)($data['sign']   ?? ''));
+$gameId = trim((string) ($data['gameId'] ?? ''));
+$uid = trim((string) ($data['uid'] ?? ''));
+$token = trim((string) ($data['token'] ?? ''));
+$roomId = trim((string) ($data['roomId'] ?? ''));
+$sign = trim((string) ($data['sign'] ?? ''));
 
 // ── 2. Required field check ──────────────────────────────────────────────
 
@@ -93,18 +93,18 @@ function b4aQuery(string $url, string $appId, string $masterKey): ?array
 {
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL            => $url,
+        CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_TIMEOUT => 15,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_HTTPHEADER     => [
+        CURLOPT_HTTPHEADER => [
             'X-Parse-Application-Id: ' . $appId,
-            'X-Parse-Master-Key: '     . $masterKey,
+            'X-Parse-Master-Key: ' . $masterKey,
             'Content-Type: application/json',
         ],
     ]);
-    $body     = curl_exec($ch);
+    $body = curl_exec($ch);
 
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -116,49 +116,11 @@ function b4aQuery(string $url, string $appId, string $masterKey): ?array
     return is_array($decoded) ? $decoded : null;
 }
 
-// ── 4.1. Token Verification with 1-Minute Grace Period ────────────────────
-$tokenValid = false;
-$tokenError = 'Invalid session token';
-$tokenUid = null;
+// ── 5. Back4App _User table এ uid দিয়ে user খোঁজা ──────────────────────
 
-$B4A_APP_ID     = $parse_app_id;
+$B4A_APP_ID = $parse_app_id;
 $B4A_MASTER_KEY = $parse_master_key;
-$B4A_BASE       = 'https://parseapi.back4app.com';
-
-try {
-    $validatedUser = ParseUser::become($token);
-    if ($validatedUser) {
-        $tokenValid = true;
-        $tokenUid = (string)($validatedUser->get('uid') ?? $validatedUser->getObjectId());
-    }
-} catch (ParseException $e) {
-    // Check if token was recently invalidated (within last 60 seconds)
-    $whereParam = urlencode(json_encode(['token' => $token]));
-    $graceResult = b4aQuery($B4A_BASE . '/classes/InvalidatedSession?where=' . $whereParam . '&limit=1&order=-createdAt', $B4A_APP_ID, $B4A_MASTER_KEY);
-    
-    if (!empty($graceResult['results'])) {
-        $graceRecord = $graceResult['results'][0];
-        $invalidatedAtStr = $graceRecord['invalidatedAt']['iso'] ?? $graceRecord['createdAt'] ?? '';
-        if ($invalidatedAtStr) {
-            $invalidatedTime = strtotime($invalidatedAtStr);
-            $currentTime = time();
-            if (($currentTime - $invalidatedTime) <= 60 && ($currentTime - $invalidatedTime) >= 0) {
-                $tokenValid = true;
-                $tokenUid = (string)($graceRecord['uid'] ?? '');
-            } else {
-                $tokenError = 'Session token expired (grace period exceeded)';
-            }
-        }
-    }
-}
-
-if (!$tokenValid) {
-    http_response_code(401);
-    echo json_encode(['errorCode' => 4006, 'errorMessage' => $tokenError]);
-    exit;
-}
-
-// ── 5. Back4App _User table এ uid দিয়ে user খোঁজা ──────────────────────
+$B4A_BASE = 'https://parseapi.back4app.com';
 
 $foundUser = null;
 
@@ -168,7 +130,7 @@ $foundUser = null;
  */
 
 // try-1: uid = "10001"  (String)
-$where  = urlencode(json_encode(['uid' => (int)$uid]));
+$where = urlencode(json_encode(['uid' => (int) $uid]));
 $result = b4aQuery($B4A_BASE . '/classes/_User?where=' . $where . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
 
 if (!empty($result['results'])) {
@@ -177,7 +139,7 @@ if (!empty($result['results'])) {
 
 // try-2: uid = 10001  (Integer/Number)
 if ($foundUser === null && is_numeric($uid)) {
-    $where  = urlencode(json_encode(['uid' => (int)$uid]));
+    $where = urlencode(json_encode(['uid' => (int) $uid]));
     $result = b4aQuery($B4A_BASE . '/1/users?where=' . $where . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
     if (!empty($result['results'])) {
         $foundUser = $result['results'][0];
@@ -190,17 +152,6 @@ if ($foundUser === null) {
     echo json_encode(['errorCode' => 4005, 'errorMessage' => 'User not found']);
     exit;
 }
-
-// Verify token owner matches the requested user
-$foundUserUid = (string)($foundUser['uid'] ?? '');
-$foundUserObjectId = (string)($foundUser['objectId'] ?? '');
-
-if ($tokenUid !== null && $tokenUid !== '' && $tokenUid !== $foundUserUid && $tokenUid !== $foundUserObjectId) {
-    http_response_code(403);
-    echo json_encode(['errorCode' => 4005, 'errorMessage' => 'Token does not match the requested user']);
-    exit;
-}
-
 
 // ── 7. User পেলে details তৈরি করে return করা ───────────────────────────
 
@@ -221,7 +172,8 @@ foreach (['avatar', 'profileImage', 'profilePicture', 'photo'] as $avatarKey) {
         } elseif (is_string($av)) {
             $avatarUrl = $av;
         }
-        if ($avatarUrl !== '') break;
+        if ($avatarUrl !== '')
+            break;
     }
 }
 
@@ -232,16 +184,16 @@ if ($avatarUrl !== '' && stripos($avatarUrl, 'http://') === 0) {
 
 // Coin balance: coins → coin → balance → 0
 $coinBalance = $foundUser['coins'] ?? $foundUser['coin'] ?? $foundUser['balance'] ?? 0;
-$coinBalance = is_numeric($coinBalance) ? (int)$coinBalance : 0;
+$coinBalance = is_numeric($coinBalance) ? (int) $coinBalance : 0;
 
 // ── 8. Response ──────────────────────────────────────────────────────────
 
 echo json_encode([
     'errorCode' => 0,
-    'data'      => [
-        'uid'      => $uid,
-        'nickname' => (string)$nickname,
-        'avatar'   => (string)$avatarUrl,
-        'coin'     => $coinBalance,
+    'data' => [
+        'uid' => $uid,
+        'nickname' => (string) $nickname,
+        'avatar' => (string) $avatarUrl,
+        'coin' => $coinBalance,
     ],
 ]);
