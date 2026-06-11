@@ -73,6 +73,7 @@ if (!$rawBody) {
         'errorCode'    => 4005,
         'errorMessage' => 'Empty request body',
         'hint'         => 'Set Content-Type: application/json and send a raw JSON body',
+        'contentType'  => $_SERVER['CONTENT_TYPE'] ?? 'not set',
     ]);
     exit;
 }
@@ -84,6 +85,8 @@ if (!is_array($data)) {
         'errorCode'    => 4005,
         'errorMessage' => 'Invalid JSON body',
         'jsonError'    => json_last_error_msg(),
+        'rawReceived'  => $rawBody,            // ← shows exactly what arrived
+        'contentType'  => $_SERVER['CONTENT_TYPE'] ?? 'not set',
         'hint'         => 'Ensure all values are quoted strings/numbers, no trailing commas, and Content-Type is application/json',
     ]);
     exit;
