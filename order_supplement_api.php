@@ -268,29 +268,65 @@ $currentCoin  = (int) ($foundUser['coins'] ?? $foundUser['coin'] ?? $foundUser['
 // ── 6. Order deduplication (check both GameTransaction and OrderSupplement) ──
 
 // Check original GameTransaction first — if it already processed, return current balance
+// $txWhere  = urlencode(json_encode(['orderId' => $orderId]));
+// $txResult = b4aGet($B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+
+// if (!empty($txResult['results'])) {
+//     // Already processed by the main update_game_coin_api — idempotent success
+//     http_response_code(200);
+//     echo json_encode([
+//         'errorCode' => 0,
+//         'data'      => ['coin' => $currentCoin]
+//     ]);
+//     exit;
+// }
+
+// // Check OrderSupplement log — prevent duplicate supplement processing
+// $supWhere  = urlencode(json_encode(['orderId' => $orderId]));
+// $supResult = b4aGet($B4A_BASE . '/classes/OrderSupplement?where=' . $supWhere . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+
+// if (!empty($supResult['results'])) {
+//     // Already supplemented — return current balance without double-crediting
+//     http_response_code(200);
+//     echo json_encode([
+//         'errorCode' => 0,
+//         'data'      => ['coin' => $currentCoin]
+//     ]);
+//     exit;
+// }
+
+// ── 6. Order deduplication (check both GameTransaction and OrderSupplement) ──
+
+// Check original GameTransaction
 $txWhere  = urlencode(json_encode(['orderId' => $orderId]));
-$txResult = b4aGet($B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+$txResult = b4aGet(
+    $B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1',
+    $B4A_APP_ID,
+    $B4A_MASTER_KEY
+);
 
 if (!empty($txResult['results'])) {
-    // Already processed by the main update_game_coin_api — idempotent success
-    http_response_code(200);
+    http_response_code(409);
     echo json_encode([
-        'errorCode' => 0,
-        'data'      => ['coin' => $currentCoin]
+        'errorCode'    => 10003,
+        'errorMessage' => 'Duplicate order number'
     ]);
     exit;
 }
 
-// Check OrderSupplement log — prevent duplicate supplement processing
+// Check OrderSupplement
 $supWhere  = urlencode(json_encode(['orderId' => $orderId]));
-$supResult = b4aGet($B4A_BASE . '/classes/OrderSupplement?where=' . $supWhere . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+$supResult = b4aGet(
+    $B4A_BASE . '/classes/OrderSupplement?where=' . $supWhere . '&limit=1',
+    $B4A_APP_ID,
+    $B4A_MASTER_KEY
+);
 
 if (!empty($supResult['results'])) {
-    // Already supplemented — return current balance without double-crediting
-    http_response_code(200);
+    http_response_code(409);
     echo json_encode([
-        'errorCode' => 0,
-        'data'      => ['coin' => $currentCoin]
+        'errorCode'    => 10003,
+        'errorMessage' => 'Duplicate order number'
     ]);
     exit;
 }
