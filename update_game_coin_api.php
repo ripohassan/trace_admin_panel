@@ -232,16 +232,36 @@ $currentCoin = (int) ($foundUser['coins'] ?? $foundUser['coin'] ?? $foundUser['b
 
 // ── 6. Order deduplication ───────────────────────────────────────────────
 
+// $txWhere = urlencode(json_encode(['orderId' => $orderId]));
+// $txResult = b4aGet($B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+
+// if (!empty($txResult['results'])) {
+//     // Duplicate order — return current balance without changes
+//     http_response_code(200);
+//     echo json_encode([
+//         'errorCode' => 0,
+//         'data' => ['coin' => $currentCoin]
+//     ]);
+//     exit;
+// }
+
+// ── 6. Order deduplication ───────────────────────────────────────────────
+
 $txWhere = urlencode(json_encode(['orderId' => $orderId]));
-$txResult = b4aGet($B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+$txResult = b4aGet(
+    $B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1',
+    $B4A_APP_ID,
+    $B4A_MASTER_KEY
+);
 
 if (!empty($txResult['results'])) {
-    // Duplicate order — return current balance without changes
-    http_response_code(200);
+    http_response_code(409);
+
     echo json_encode([
-        'errorCode' => 0,
-        'data' => ['coin' => $currentCoin]
+        'errorCode'    => 10003,
+        'errorMessage' => 'Duplicate order number'
     ]);
+
     exit;
 }
 
