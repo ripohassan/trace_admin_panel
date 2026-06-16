@@ -255,7 +255,7 @@ $txResult = b4aGet(
 );
 
 if (!empty($txResult['results'])) {
-    http_response_code(409);
+    http_response_code(200);
 
     echo json_encode([
         'errorCode'    => 10003,
