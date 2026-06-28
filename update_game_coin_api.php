@@ -228,7 +228,7 @@ if ($foundUser === null) {
 }
 
 $userObjectId = $foundUser['objectId'];
-$currentCoin = (int) ($foundUser['coins'] ?? $foundUser['coin'] ?? $foundUser['balance'] ?? 0);
+$currentCoin = (int) ($foundUser['userPoints'] ?? $foundUser['coin'] ?? $foundUser['balance'] ?? 0);
 
 // ── 6. Order deduplication ───────────────────────────────────────────────
 
