@@ -228,7 +228,7 @@ if ($foundUser === null) {
 }
 
 $userObjectId = $foundUser['objectId'];
-$currentCoin = (int) ($foundUser['userPoints'] ?? $foundUser['balance'] ?? 0);
+$currentCoin = (int) ($foundUser['credit'] ?? $foundUser['balance'] ?? 0);
 
 // ── 6. Order deduplication ───────────────────────────────────────────────
 
@@ -285,7 +285,7 @@ if ($type === 1) {
 
 $updateResult = b4aPut(
     $B4A_BASE . '/classes/_User/' . $userObjectId,
-    ['userPoints' => $newCoin],
+    ['credit' => $newCoin],
     $B4A_APP_ID,
     $B4A_MASTER_KEY
 );
