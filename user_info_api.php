@@ -183,7 +183,7 @@ if ($avatarUrl !== '' && stripos($avatarUrl, 'http://') === 0) {
 }
 
 // Coin balance: coins → coin → balance → 0
-$coinBalance = $foundUser['userPoints'] ?? $foundUser['coin'] ?? $foundUser['balance'] ?? 0;
+$coinBalance = $foundUser['credit'] ?? $foundUser['coin'] ?? $foundUser['balance'] ?? 0;
 $coinBalance = is_numeric($coinBalance) ? (int) $coinBalance : 0;
 
 // ── 8. Response ──────────────────────────────────────────────────────────
