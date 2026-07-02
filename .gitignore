@@ -20,6 +20,7 @@
 # # Test results
 # phpunit-test-results
 # .phpunit.result.cache
+setup_admin.php
 
 # # Coverage
 # coverage.xml
