@@ -59,7 +59,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_game') {
                     $query = new ParseQuery('Game');
                     $matchCounter = 0;
                     try {
-                        $matchCounter = $query->count();
+                        $matchCounter = $query->count(true);
                     } catch (Exception $e) {
                         $matchCounter = '?';
                     }
@@ -95,7 +95,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_game') {
                                     try {
                                         $query = new ParseQuery('Game');
                                         $query->ascending('gameId');
-                                        $gameArray = $query->find(false);
+                                        $gameArray = $query->find(true);
 
                                         foreach ($gameArray as $game) {
                                             $objectId = $game->getObjectId();
