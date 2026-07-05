@@ -4,6 +4,7 @@ require '../vendor/autoload.php';
 include '../Configs.php';
 
 use Parse\ParseException;
+use Parse\ParseFile;
 use Parse\ParseObject;
 use Parse\ParseQuery;
 use Parse\ParseUser;
@@ -39,6 +40,7 @@ if (isset($_GET['objectId'])) {
                 'full_url' => (string)($game->get('full_url') ?? ''),
                 'hd_url' => (string)($game->get('hd_url') ?? ''),
                 'half_url' => (string)($game->get('half_url') ?? ''),
+                'icon_url' => $game->get('icon') ? $game->get('icon')->getUrl() : '',
             ];
             $isEdit = true;
         } catch (ParseException $e) {
@@ -56,6 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fullUrl = trim($_POST['full_url'] ?? '');
     $hdUrl = trim($_POST['hd_url'] ?? '');
     $halfUrl = trim($_POST['half_url'] ?? '');
+
+    $iconPath = $_FILES["game_icon"]["tmp_name"] ?? '';
+    $iconName = $_FILES['game_icon']['name'] ?? '';
+    $safeBaseName = preg_replace('/[^A-Za-z0-9._-]/', '_', pathinfo($iconName, PATHINFO_FILENAME));
+    $safeExtension = strtolower(pathinfo($iconName, PATHINFO_EXTENSION));
+    $safeFileName = $safeBaseName ?: 'game_icon';
+    if ($safeExtension !== '') {
+        $safeFileName .= '.' . $safeExtension;
+    }
 
     // Validate required fields
     if ($gameId === '' || $name === '' || $title === '' || $ver <= 0) {
@@ -75,6 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($fullUrl !== '') $game->set('full_url', $fullUrl);
                 if ($hdUrl !== '') $game->set('hd_url', $hdUrl);
                 if ($halfUrl !== '') $game->set('half_url', $halfUrl);
+                
+                if ($iconPath && $iconName && is_uploaded_file($iconPath)) {
+                    $game->set("icon", ParseFile::createFromFile($iconPath, $safeFileName));
+                }
+                
                 $game->save(true);
                 $gameMessage = 'Game updated successfully.';
                 $gameData = [
@@ -97,6 +113,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($fullUrl !== '') $newGame->set('full_url', $fullUrl);
                 if ($hdUrl !== '') $newGame->set('hd_url', $hdUrl);
                 if ($halfUrl !== '') $newGame->set('half_url', $halfUrl);
+                
+                if ($iconPath && $iconName && is_uploaded_file($iconPath)) {
+                    $newGame->set("icon", ParseFile::createFromFile($iconPath, $safeFileName));
+                }
+                
                 $newGame->save(true);
                 $gameMessage = 'Game created successfully.';
                 $gameData = [
@@ -147,7 +168,7 @@ $pageTitle = $isEdit ? 'Edit Game' : 'Add new Game';
                         <?php endif; ?>
 
                         <div class="needs-validation">
-                            <form class="form-valide" action="" method="post" novalidate>
+                            <form class="form-valide" enctype="multipart/form-data" action="" method="post" novalidate>
 
                                 <div class="form-group row">
                                     <label for="game_id" class="col-sm-4 col-form-label">Game ID<span class="text-danger">*</span></label>
@@ -209,6 +230,19 @@ $pageTitle = $isEdit ? 'Edit Game' : 'Add new Game';
                                         <input type="url" class="form-control" id="half_url" name="half_url" 
                                             placeholder="https://example.com/games/half" value="<?php echo htmlspecialchars($gameData['half_url'] ?? ''); ?>">
                                         <small class="form-text text-muted">Half screen game link (at least one URL required)</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-group row">
+                                    <label for="game_icon" class="col-sm-4 col-form-label">Game Icon</label>
+                                    <div class="col-sm-8">
+                                        <input id="game_icon" name="game_icon" type="file" accept="image/*" class="form-control-file" />
+                                        <?php if (!empty($gameData['icon_url'])): ?>
+                                            <div class="mt-2">
+                                                <img src="<?php echo htmlspecialchars($gameData['icon_url']); ?>" alt="Current Icon" style="max-height: 80px; border-radius: 8px;">
+                                            </div>
+                                        <?php endif; ?>
+                                        <small class="form-text text-muted">Upload an icon image for the game</small>
                                     </div>
                                 </div>
 

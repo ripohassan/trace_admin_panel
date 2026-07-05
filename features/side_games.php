@@ -81,6 +81,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_game') {
                                 <thead class="bg-light">
                                     <tr>
                                         <th style="color:#65131f ;">ObjectId</th>
+                                        <th style="color:#65131f ;">Icon</th>
                                         <th style="color:#65131f ;">Game ID</th>
                                         <th style="color:#65131f ;">English Name</th>
                                         <th style="color:#65131f ;">Chinese Title</th>
@@ -99,6 +100,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_game') {
 
                                         foreach ($gameArray as $game) {
                                             $objectId = $game->getObjectId();
+                                            $icon = $game->get('icon');
+                                            $iconUrl = $icon ? $icon->getUrl() : '';
                                             $gameId = $game->get('gameId') ?? '';
                                             $name = $game->get('name') ?? '';
                                             $title = $game->get('title') ?? '';
@@ -109,6 +112,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete_game') {
                                             echo '
                                             <tr>
                                                 <td>' . htmlspecialchars($objectId) . '</td>
+                                                <td>' . ($iconUrl ? '<img src="'.htmlspecialchars($iconUrl).'" style="max-height: 40px; border-radius: 4px;">' : 'No Icon') . '</td>
                                                 <td>' . htmlspecialchars($gameId) . '</td>
                                                 <td>' . htmlspecialchars($name) . '</td>
                                                 <td>' . htmlspecialchars($title) . '</td>
