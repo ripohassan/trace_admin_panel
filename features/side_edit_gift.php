@@ -161,7 +161,7 @@ if ($typeFile !== null && is_object($typeFile) && method_exists($typeFile, 'getU
 
                                     <div class="form-group">
                                         <label for="gift_file">Replace Photo/File</label>
-                                        <input type="file" id="gift_file" name="gift_file" class="form-control" accept="application/json,image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svga">
+                                        <input type="file" id="gift_file" name="gift_file" class="form-control" accept="application/json,image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svga,.svg">
                                         <small class="text-muted">Upload JSON, image, SVG, or SVGA file.</small>
                                     </div>
 
