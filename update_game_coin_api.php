@@ -270,7 +270,7 @@ if (!empty($txResult['results'])) {
 $newCoin = $currentCoin;
 if ($type === 1) {
     // Type 1: Consume coins
-    $newCoin = $currentCoin + $coin;
+    $newCoin = $currentCoin - $coin;
     if ($newCoin < 0) {
         http_response_code(400);
         echo json_encode(['errorCode' => 4004, 'errorMessage' => 'Insufficient game coins']);
