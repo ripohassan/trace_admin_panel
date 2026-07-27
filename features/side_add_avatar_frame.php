@@ -40,50 +40,52 @@ if(isset($_POST['val-name']) && isset($_POST['val-credits']) && isset($_FILES['v
 
         $safeBaseName = preg_replace('/[^A-Za-z0-9._-]/', '_', pathinfo($fileName, PATHINFO_FILENAME));
         $safeExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-        $allowedExtensions = ['png', 'jpg', 'jpeg'];
-        $allowedMimeTypes = ['image/png', 'image/jpeg', 'image/pjpeg', 'image/jpg', 'image/jfif', 'image/x-png', 'image/x-jpeg'];
+        $allowedExtensions = ['png', 'jpg', 'jpeg', 'svga'];
+        $allowedMimeTypes = ['image/png', 'image/jpeg', 'image/pjpeg', 'image/jpg', 'image/jfif', 'image/x-png', 'image/x-jpeg', 'application/octet-stream', 'application/x-svga', 'application/vnd.svga', 'image/svga', 'application/zip', 'application/x-zip-compressed'];
 
         if ($name === '' || $credits <= 0) {
             $createAvatarFrameError = 'Please provide a valid name and credits amount.';
         } elseif ($fileError !== UPLOAD_ERR_OK || !$filePath || !is_uploaded_file($filePath)) {
-            $createAvatarFrameError = 'Please upload a valid PNG or JPG image file.';
+            $createAvatarFrameError = 'Please upload a valid PNG, JPG, or SVGA file.';
         } elseif (!in_array($safeExtension, $allowedExtensions, true)) {
-            $createAvatarFrameError = 'Invalid file extension. Only PNG and JPG files are allowed.';
+            $createAvatarFrameError = 'Invalid file extension. Only PNG, JPG, and SVGA files are allowed.';
         } else {
-            $imageType = 0;
+            if ($safeExtension !== 'svga') {
+                $imageType = 0;
 
-            if (function_exists('exif_imagetype')) {
-                $imageType = (int) @exif_imagetype($filePath);
-            }
+                if (function_exists('exif_imagetype')) {
+                    $imageType = (int) @exif_imagetype($filePath);
+                }
 
-            if ($imageType === 0 && function_exists('getimagesize')) {
-                $imageInfo = @getimagesize($filePath);
-                if (is_array($imageInfo)) {
-                    $imageType = (int) ($imageInfo[2] ?? 0);
-                    if (!empty($imageInfo['mime'])) {
-                        $detectedMimeType = (string) $imageInfo['mime'];
+                if ($imageType === 0 && function_exists('getimagesize')) {
+                    $imageInfo = @getimagesize($filePath);
+                    if (is_array($imageInfo)) {
+                        $imageType = (int) ($imageInfo[2] ?? 0);
+                        if (!empty($imageInfo['mime'])) {
+                            $detectedMimeType = (string) $imageInfo['mime'];
+                        }
                     }
                 }
-            }
 
-            if (function_exists('finfo_open')) {
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                if ($finfo !== false) {
-                    $detectedMimeType = (string) finfo_file($finfo, $filePath);
-                    finfo_close($finfo);
+                if (function_exists('finfo_open')) {
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    if ($finfo !== false) {
+                        $detectedMimeType = (string) finfo_file($finfo, $filePath);
+                        finfo_close($finfo);
+                    }
                 }
-            }
 
-            if ($detectedMimeType === '') {
-                $detectedMimeType = (string)($_FILES['val-file']['type'] ?? '');
-            }
+                if ($detectedMimeType === '') {
+                    $detectedMimeType = (string)($_FILES['val-file']['type'] ?? '');
+                }
 
-            $isAllowedByImageType = in_array($imageType, [IMAGETYPE_JPEG, IMAGETYPE_PNG], true);
-            $isAllowedByMime = in_array(strtolower($detectedMimeType), $allowedMimeTypes, true)
-                || preg_match('/^image\/(jpeg|jpg|pjpeg|png|x-png|x-jpeg|jfif)$/i', $detectedMimeType) === 1;
+                $isAllowedByImageType = in_array($imageType, [IMAGETYPE_JPEG, IMAGETYPE_PNG], true);
+                $isAllowedByMime = in_array(strtolower($detectedMimeType), $allowedMimeTypes, true)
+                    || preg_match('/^image\/(jpeg|jpg|pjpeg|png|x-png|x-jpeg|jfif)$/i', $detectedMimeType) === 1;
 
-            if (!$isAllowedByImageType && !$isAllowedByMime) {
-                $createAvatarFrameError = 'Invalid image type. Only PNG and JPG files are allowed.';
+                if (!$isAllowedByImageType && !$isAllowedByMime) {
+                    $createAvatarFrameError = 'Invalid file type. Only PNG, JPG, and SVGA files are allowed.';
+                }
             }
         }
 
@@ -176,10 +178,10 @@ if(isset($_POST['val-name']) && isset($_POST['val-credits']) && isset($_FILES['v
                         </div>
 
                             <div class="form-group row">
-                                <label for="val-file" class="col-sm-4 col-form-label">Image file (PNG/JPG)<span class="text-danger">*</span></label>
+                                <label for="val-file" class="col-sm-4 col-form-label">Image / SVGA file (PNG/JPG/SVGA)<span class="text-danger">*</span></label>
                                 <div class="col-sm-8">
-                                    <input id="val-file" name="val-file" type="file" accept="image/png, image/jpeg, .png, .jpg, .jpeg" required />
-                                    <div class="invalid-feedback">Please choose your Avatar Frame image file (PNG/JPG).</div>
+                                    <input id="val-file" name="val-file" type="file" accept="image/png, image/jpeg, .png, .jpg, .jpeg, .svga" required />
+                                    <div class="invalid-feedback">Please choose your Avatar Frame file (PNG/JPG/SVGA).</div>
                                     <div class="valid-feedback">Looks good!</div>
                                 </div>
                             </div>

@@ -105,8 +105,8 @@ if ($typeFile !== null && is_object($typeFile) && method_exists($typeFile, 'getU
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="frame_file">Replace File (PNG)</label>
-                                        <input type="file" id="frame_file" name="frame_file" class="form-control" accept="image/png,image/jpeg,image/webp">
+                                        <label for="frame_file">Replace File (PNG/JPG/SVGA)</label>
+                                        <input type="file" id="frame_file" name="frame_file" class="form-control" accept="image/png,image/jpeg,image/webp,.svga">
                                     </div>
 
                                     <div class="form-group form-check">
