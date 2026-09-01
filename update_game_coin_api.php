@@ -1,6 +1,6 @@
 <?php
 /**
- * Update Game Coin API
+ * Update Game Coin API (High-Performance Optimized)
  *
  * Update user's game coins in real-time during gameplay
  *
@@ -26,27 +26,9 @@
  *     "coin": 9999
  *   }
  * }
- *
- * Error Codes:
- * 4005 - Parameter error (missing required fields)
- * 10004 - Signature error
- * 4000 - Network timeout / server error
- * 4004 - Insufficient game coins
  */
 
 header('Content-Type: application/json');
-
-// SSL bypass (development)
-stream_context_set_default([
-    'ssl' => [
-        'verify_peer' => false,
-        'verify_peer_name' => false,
-        'allow_self_signed' => true,
-    ],
-]);
-
-require 'vendor/autoload.php';
-include 'Configs.php';
 
 // ── 1. Request parse ─────────────────────────────────────────────────────
 
@@ -86,16 +68,26 @@ if ($orderId === '' || $gameId === '' || $roundId === '' || $uid === '' ||
     exit;
 }
 
-// ── 3. Signature verify ──────────────────────────────────────────────────
+// ── 3. Load lightweight env & verify signature ───────────────────────────
 
-$secretKey = $_ENV['API_SIGN_KEY'] ?? $_ENV['WEBHOOK_KEY'] ?? $_ENV['REST_API_KEY'] ?? '';
-if ($secretKey === '') {
-    http_response_code(500);
-    echo json_encode(['errorCode' => 4000, 'errorMessage' => 'Server error: signature key not configured']);
-    exit;
+if (!isset($_ENV['API_SIGN_KEY'])) {
+    $envFile = __DIR__ . '/.env';
+    if (file_exists($envFile)) {
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0 || strpos($line, '=') === false) {
+                continue;
+            }
+            list($k, $v) = explode('=', $line, 2);
+            $k = trim($k);
+            $v = trim($v, " \t\n\r\0\x0B\"'");
+            $_ENV[$k] = $v;
+        }
+    }
 }
 
-// Verify signature: md5(orderId + gameId + roundId + uid + coin + type + rewardType + token + winId + key)
+$secretKey = $_ENV['API_SIGN_KEY'] ?? $_ENV['WEBHOOK_KEY'] ?? $_ENV['REST_API_KEY'] ?? 'xR26YzHB5Sm3qX2R3i676WfAoSQXkfCDha9WVqZ';
 $expectedSign = md5($orderId . $gameId . $roundId . $uid . $coin . $type . $rewardType . $token . $winId . $secretKey);
 if (strtolower($sign) !== strtolower($expectedSign)) {
     http_response_code(401);
@@ -103,160 +95,124 @@ if (strtolower($sign) !== strtolower($expectedSign)) {
     exit;
 }
 
-// ── 4. Back4App REST API helpers ─────────────────────────────────────────
+// ── 4. Fast Local Deduplication Check (< 1ms) ───────────────────────────
 
-$B4A_APP_ID = $parse_app_id;
-$B4A_MASTER_KEY = $parse_master_key;
+$orderCacheDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'b4a_orders';
+$orderCacheFile = $orderCacheDir . DIRECTORY_SEPARATOR . md5('ord_' . $orderId) . '.json';
+
+if (file_exists($orderCacheFile) && (time() - filemtime($orderCacheFile) < 3600)) {
+    http_response_code(200);
+    echo json_encode([
+        'errorCode'    => 10003,
+        'errorMessage' => 'Duplicate order number'
+    ]);
+    exit;
+}
+
+// ── 5. Parallel Back4App Queries (curl_multi) ───────────────────────────
+
+$B4A_APP_ID = $_ENV['APPLICATION_ID'] ?? $_ENV['PARSE_APP_ID'] ?? 'NXgg3EtUgqRLryHea3pjIHWf0qNdyWTxbfZAFQ9b';
+$B4A_MASTER_KEY = $_ENV['PARSE_MASTER_KEY'] ?? 'cx30LCUA8mfrKhS88Zetjo5PU5syyMk2Vh49n54u';
 $B4A_BASE = 'https://parseapi.back4app.com';
 
-/**
- * Back4App REST API GET request.
- */
-function b4aGet(string $url, string $appId, string $masterKey): ?array
-{
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_HTTPHEADER => [
-            'X-Parse-Application-Id: ' . $appId,
-            'X-Parse-Master-Key: ' . $masterKey,
-            'Content-Type: application/json',
-        ],
-    ]);
-    $body = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+$curlHeaders = [
+    'X-Parse-Application-Id: ' . $B4A_APP_ID,
+    'X-Parse-Master-Key: ' . $B4A_MASTER_KEY,
+    'Content-Type: application/json',
+];
 
-    if ($body === false || $httpCode < 200 || $httpCode >= 300) {
-        return null;
-    }
-    $decoded = json_decode($body, true);
-    return is_array($decoded) ? $decoded : null;
-}
+$mh = curl_multi_init();
 
-/**
- * Back4App REST API PUT request (update object).
- */
-function b4aPut(string $url, array $data, string $appId, string $masterKey): ?array
-{
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_CUSTOMREQUEST => 'PUT',
-        CURLOPT_POSTFIELDS => json_encode($data),
-        CURLOPT_HTTPHEADER => [
-            'X-Parse-Application-Id: ' . $appId,
-            'X-Parse-Master-Key: ' . $masterKey,
-            'Content-Type: application/json',
-        ],
-    ]);
-    $body = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($body === false || $httpCode < 200 || $httpCode >= 300) {
-        return null;
-    }
-    $decoded = json_decode($body, true);
-    return is_array($decoded) ? $decoded : null;
-}
-
-/**
- * Back4App REST API POST request (create object).
- */
-function b4aPost(string $url, array $data, string $appId, string $masterKey): ?array
-{
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 15,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($data),
-        CURLOPT_HTTPHEADER => [
-            'X-Parse-Application-Id: ' . $appId,
-            'X-Parse-Master-Key: ' . $masterKey,
-            'Content-Type: application/json',
-        ],
-    ]);
-    $body = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($body === false || $httpCode < 200 || $httpCode >= 300) {
-        return null;
-    }
-    $decoded = json_decode($body, true);
-    return is_array($decoded) ? $decoded : null;
-}
-
-// ── 5. Find user by uid ──────────────────────────────────────────────────
-
-$whereClause = is_numeric($uid)
+// Handle 1: Find User
+$whereUser = is_numeric($uid)
     ? ['$or' => [['uid' => (int) $uid], ['uid' => (string) $uid]]]
     : ['uid' => (string) $uid];
+$userUrl = $B4A_BASE . '/users?where=' . urlencode(json_encode($whereUser)) . '&keys=' . urlencode('uid,credit,balance,coins,coin') . '&limit=1';
 
-$keys = 'uid,credit,balance,coins,coin';
-$url = $B4A_BASE . '/users?where=' . urlencode(json_encode($whereClause)) . '&keys=' . urlencode($keys) . '&limit=1';
-$result = b4aGet($url, $B4A_APP_ID, $B4A_MASTER_KEY);
+$chUser = curl_init($userUrl);
+curl_setopt_array($chUser, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 4,
+    CURLOPT_CONNECTTIMEOUT => 2,
+    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_SSL_VERIFYHOST => false,
+    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+    CURLOPT_TCP_NODELAY => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
+    CURLOPT_HTTPHEADER => $curlHeaders,
+]);
+curl_multi_add_handle($mh, $chUser);
 
-$foundUser = !empty($result['results'][0]) ? $result['results'][0] : null;
+// Handle 2: GameTransaction deduplication
+$txWhere = urlencode(json_encode(['orderId' => $orderId]));
+$txUrl = $B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&keys=orderId&limit=1';
+
+$chTx = curl_init($txUrl);
+curl_setopt_array($chTx, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 4,
+    CURLOPT_CONNECTTIMEOUT => 2,
+    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_SSL_VERIFYHOST => false,
+    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+    CURLOPT_TCP_NODELAY => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
+    CURLOPT_HTTPHEADER => $curlHeaders,
+]);
+curl_multi_add_handle($mh, $chTx);
+
+// Execute both concurrently
+$running = null;
+do {
+    curl_multi_exec($mh, $running);
+    curl_multi_select($mh, 0.05);
+} while ($running > 0);
+
+$userBody = curl_multi_getcontent($chUser);
+$txBody = curl_multi_getcontent($chTx);
+
+curl_multi_remove_handle($mh, $chUser);
+curl_multi_remove_handle($mh, $chTx);
+curl_multi_close($mh);
+curl_close($chUser);
+curl_close($chTx);
+
+// Parse User Result
+$foundUser = null;
+if ($userBody) {
+    $userDecoded = json_decode($userBody, true);
+    if (!empty($userDecoded['results'][0])) {
+        $foundUser = $userDecoded['results'][0];
+    }
+}
 
 if ($foundUser === null) {
-    http_response_code(404);
+    http_response_code(200);
     echo json_encode(['errorCode' => 4000, 'errorMessage' => 'User not found']);
     exit;
+}
+
+// Parse Tx Deduplication Result
+if ($txBody) {
+    $txDecoded = json_decode($txBody, true);
+    if (!empty($txDecoded['results'])) {
+        if (!is_dir($orderCacheDir)) {
+            @mkdir($orderCacheDir, 0777, true);
+        }
+        @file_put_contents($orderCacheFile, '1', LOCK_EX);
+        http_response_code(200);
+        echo json_encode([
+            'errorCode'    => 10003,
+            'errorMessage' => 'Duplicate order number'
+        ]);
+        exit;
+    }
 }
 
 $userObjectId = $foundUser['objectId'];
 $currentCoin = (int) ($foundUser['credit'] ?? $foundUser['balance'] ?? $foundUser['coins'] ?? 0);
 
-// ── 6. Order deduplication ───────────────────────────────────────────────
-
-// $txWhere = urlencode(json_encode(['orderId' => $orderId]));
-// $txResult = b4aGet($B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
-
-// if (!empty($txResult['results'])) {
-//     // Duplicate order — return current balance without changes
-//     http_response_code(200);
-//     echo json_encode([
-//         'errorCode' => 0,
-//         'data' => ['coin' => $currentCoin]
-//     ]);
-//     exit;
-// }
-
-// ── 6. Order deduplication ───────────────────────────────────────────────
-
-$txWhere = urlencode(json_encode(['orderId' => $orderId]));
-$txResult = b4aGet(
-    $B4A_BASE . '/classes/GameTransaction?where=' . $txWhere . '&limit=1',
-    $B4A_APP_ID,
-    $B4A_MASTER_KEY
-);
-
-if (!empty($txResult['results'])) {
-    http_response_code(200);
-
-    echo json_encode([
-        'errorCode'    => 10003,
-        'errorMessage' => 'Duplicate order number'
-    ]);
-
-    exit;
-}
-
-// ── 7. Calculate new coin balance ────────────────────────────────────────
+// ── 6. Calculate new coin balance ────────────────────────────────────────
 
 $newCoin = $currentCoin;
 if ($type === 1) {
@@ -272,22 +228,54 @@ if ($type === 1) {
     $newCoin = $currentCoin + $coin;
 }
 
-// ── 8. Update user coins via REST API ────────────────────────────────────
+// ── 7. Update user coins via REST API ────────────────────────────────────
 
-$updateResult = b4aPut(
-    $B4A_BASE . '/classes/_User/' . $userObjectId,
-    ['credit' => $newCoin],
-    $B4A_APP_ID,
-    $B4A_MASTER_KEY
-);
+$chUpdate = curl_init($B4A_BASE . '/classes/_User/' . $userObjectId);
+curl_setopt_array($chUpdate, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 4,
+    CURLOPT_CONNECTTIMEOUT => 2,
+    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_SSL_VERIFYHOST => false,
+    CURLOPT_CUSTOMREQUEST => 'PUT',
+    CURLOPT_POSTFIELDS => json_encode(['credit' => $newCoin]),
+    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+    CURLOPT_TCP_NODELAY => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
+    CURLOPT_HTTPHEADER => $curlHeaders,
+]);
+$updateBody = curl_exec($chUpdate);
+$updateCode = curl_getinfo($chUpdate, CURLINFO_HTTP_CODE);
+curl_close($chUpdate);
 
-if ($updateResult === null) {
+if ($updateBody === false || $updateCode < 200 || $updateCode >= 300) {
     http_response_code(500);
     echo json_encode(['errorCode' => 4000, 'errorMessage' => 'Failed to update user coins']);
     exit;
 }
 
-// ── 9. Log transaction for deduplication ─────────────────────────────────
+// ── 8. Local cache update & deduplication store ──────────────────────────
+
+// Invalidate & update user info cache
+$userCacheDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'b4a_user_cache';
+$userCacheFile = $userCacheDir . DIRECTORY_SEPARATOR . md5('user_info_' . $uid) . '.json';
+if (file_exists($userCacheFile)) {
+    $cached = json_decode(@file_get_contents($userCacheFile), true);
+    if (is_array($cached) && !isset($cached['__not_found'])) {
+        $cached['coin'] = $newCoin;
+        @file_put_contents($userCacheFile, json_encode($cached), LOCK_EX);
+    } else {
+        @unlink($userCacheFile);
+    }
+}
+
+// Store order deduplication cache
+if (!is_dir($orderCacheDir)) {
+    @mkdir($orderCacheDir, 0777, true);
+}
+@file_put_contents($orderCacheFile, '1', LOCK_EX);
+
+// ── 9. Log transaction for auditing ──────────────────────────────────────
 
 $txData = [
     'orderId' => $orderId,
@@ -303,13 +291,22 @@ $txData = [
     'newCoin' => $newCoin,
 ];
 
-b4aPost($B4A_BASE . '/classes/GameTransaction', $txData, $B4A_APP_ID, $B4A_MASTER_KEY);
-
-// Invalidate user info cache
-$cacheFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'b4a_user_cache' . DIRECTORY_SEPARATOR . md5('user_info_' . $uid) . '.json';
-if (file_exists($cacheFile)) {
-    @unlink($cacheFile);
-}
+$chTxPost = curl_init($B4A_BASE . '/classes/GameTransaction');
+curl_setopt_array($chTxPost, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 4,
+    CURLOPT_CONNECTTIMEOUT => 2,
+    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_SSL_VERIFYHOST => false,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => json_encode($txData),
+    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+    CURLOPT_TCP_NODELAY => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
+    CURLOPT_HTTPHEADER => $curlHeaders,
+]);
+curl_exec($chTxPost);
+curl_close($chTxPost);
 
 // ── 10. Response ─────────────────────────────────────────────────────────
 
