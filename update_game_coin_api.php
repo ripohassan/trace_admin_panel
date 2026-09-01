@@ -202,24 +202,15 @@ function b4aPost(string $url, array $data, string $appId, string $masterKey): ?a
 
 // ── 5. Find user by uid ──────────────────────────────────────────────────
 
-$foundUser = null;
+$whereClause = is_numeric($uid)
+    ? ['$or' => [['uid' => (int) $uid], ['uid' => (string) $uid]]]
+    : ['uid' => (string) $uid];
 
-// try-1: uid as Integer
-$where = urlencode(json_encode(['uid' => (int) $uid]));
-$result = b4aGet($B4A_BASE . '/classes/_User?where=' . $where . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
+$keys = 'uid,credit,balance,coins,coin';
+$url = $B4A_BASE . '/users?where=' . urlencode(json_encode($whereClause)) . '&keys=' . urlencode($keys) . '&limit=1';
+$result = b4aGet($url, $B4A_APP_ID, $B4A_MASTER_KEY);
 
-if (!empty($result['results'])) {
-    $foundUser = $result['results'][0];
-}
-
-// try-2: uid as String
-if ($foundUser === null) {
-    $where = urlencode(json_encode(['uid' => (string) $uid]));
-    $result = b4aGet($B4A_BASE . '/classes/_User?where=' . $where . '&limit=1', $B4A_APP_ID, $B4A_MASTER_KEY);
-    if (!empty($result['results'])) {
-        $foundUser = $result['results'][0];
-    }
-}
+$foundUser = !empty($result['results'][0]) ? $result['results'][0] : null;
 
 if ($foundUser === null) {
     http_response_code(404);
@@ -228,7 +219,7 @@ if ($foundUser === null) {
 }
 
 $userObjectId = $foundUser['objectId'];
-$currentCoin = (int) ($foundUser['credit'] ?? $foundUser['balance'] ?? 0);
+$currentCoin = (int) ($foundUser['credit'] ?? $foundUser['balance'] ?? $foundUser['coins'] ?? 0);
 
 // ── 6. Order deduplication ───────────────────────────────────────────────
 
@@ -313,6 +304,12 @@ $txData = [
 ];
 
 b4aPost($B4A_BASE . '/classes/GameTransaction', $txData, $B4A_APP_ID, $B4A_MASTER_KEY);
+
+// Invalidate user info cache
+$cacheFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'b4a_user_cache' . DIRECTORY_SEPARATOR . md5('user_info_' . $uid) . '.json';
+if (file_exists($cacheFile)) {
+    @unlink($cacheFile);
+}
 
 // ── 10. Response ─────────────────────────────────────────────────────────
 
